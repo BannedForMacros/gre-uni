@@ -1,0 +1,30 @@
+[
+  {
+      "TipoDocumento": 3,
+      "NumSerie": 2605,
+      "UltimoValor": 137393765,
+      "UltimoValorMarket": 467027850,
+      "CtrResp": "Respuesta 1"
+  },
+  {
+      "TipoDocumento": 3,
+      "NumSerie": 56523,
+      "UltimoValor": 62848077,
+      "UltimoValorMarket": 597027111,
+      "CtrResp": "Respuesta 2"
+  },
+  {
+      "TipoDocumento": 1,
+      "NumSerie": 54285,
+      "UltimoValor": 385394189,
+      "UltimoValorMarket": 713157769,
+      "CtrResp": "Respuesta 3"
+  },
+  {
+      "TipoDocumento": 3,
+      "NumSerie": 5052,
+      "UltimoValor": 970900996,
+      "UltimoValorMarket": 226145194,
+      "CtrResp": "Respuesta 4"
+  }
+]

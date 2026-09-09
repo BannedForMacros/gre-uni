@@ -1,0 +1,67 @@
+[
+  {
+      "codTransportista": 1,
+      "NombreTransportista": "Pedro García Torres",
+      "DireccionTransportista": "Av. Principal, 456",
+      "RucTransportista": "RUC-35736194879",
+      "TeléfonoTransportista": "123456789",
+      "EmailTransportista": "pedro.garcía.torres@example.com",
+      "Estado": "string",
+      "UsuarioCreador": "string",
+      "UsuarioModificador": "string",
+      "FechaCreacuion": "2023-06-08T10:31:34.187",
+      "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+      "codTransportista": 2,
+      "NombreTransportista": "Juan Hernández López",
+      "DireccionTransportista": "Av. Libertad, 123",
+      "RucTransportista": "RUC-67622546660",
+      "TeléfonoTransportista": "123456789",
+      "EmailTransportista": "juan.hernández.lópez@example.com",
+      "Estado": "string",
+      "UsuarioCreador": "string",
+      "UsuarioModificador": "string",
+      "FechaCreacuion": "2023-06-08T10:31:34.187",
+      "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+      "codTransportista": 3,
+      "NombreTransportista": "María Rojas Ramírez",
+      "DireccionTransportista": "Calle Central, 987",
+      "RucTransportista": "RUC-96478990809",
+      "TeléfonoTransportista": "123456789",
+      "EmailTransportista": "maría.rojas.ramírez@example.com",
+      "Estado": "string",
+      "UsuarioCreador": "string",
+      "UsuarioModificador": "string",
+      "FechaCreacuion": "2023-06-08T10:31:34.187",
+      "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+      "codTransportista": 4,
+      "NombreTransportista": "Ana Pérez González",
+      "DireccionTransportista": "Calle Central, 654",
+      "RucTransportista": "RUC-81377547931",
+      "TeléfonoTransportista": "123456789",
+      "EmailTransportista": "ana.pérez.gonzález@example.com",
+      "Estado": "string",
+      "UsuarioCreador": "string",
+      "UsuarioModificador": "string",
+      "FechaCreacuion": "2023-06-08T10:31:34.187",
+      "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+      "codTransportista": 5,
+      "NombreTransportista": "Diego López Pérez",
+      "DireccionTransportista": "Av. Principal, 123",
+      "RucTransportista": "RUC-34797834830",
+      "TeléfonoTransportista": "123456789",
+      "EmailTransportista": "diego.lópez.pérez@example.com",
+      "Estado": "string",
+      "UsuarioCreador": "string",
+      "UsuarioModificador": "string",
+      "FechaCreacuion": "2023-06-08T10:31:34.187",
+      "FechaModificacion": "2023-06-08T10:31:34.187"
+  }
+]

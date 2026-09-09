@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class AddEnviadoDatamarketToGuiaIngreso extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::table('guia_ingresos', function (Blueprint $table) {
+            $table->tinyInteger('enviado_datamarket')->default(0);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::table('guia_ingresos', function (Blueprint $table) {
+            $table->dropColumn('enviado_datamarket');
+        });
+    }
+}

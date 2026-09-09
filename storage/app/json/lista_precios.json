@@ -1,0 +1,26 @@
+[
+  {
+    "CodEstacion": 1,
+    "RazonSocial": "Lista Principal",
+    "Precio": 10.5,
+    "CodListaPrecio": "LP001"
+  },
+  {
+    "CodEstacion": 2,
+    "RazonSocial": "Lista Secundaria 1",
+    "Precio": 9.8,
+    "CodListaPrecio": "LS001"
+  },
+  {
+    "CodEstacion": 3,
+    "RazonSocial": "Lista Secundaria 2",
+    "Precio": 12.2,
+    "CodListaPrecio": "LS002"
+  },
+  {
+    "CodEstacion": 4,
+    "RazonSocial": "Lista Especial",
+    "Precio": 14.5,
+    "CodListaPrecio": "LE001"
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+      "FechaTipoCambio": "2023-01-05T01:10:47.000000",
+      "Venta": 1.4,
+      "Compra": 2.6,
+      "TcEstacion": 7.7,
+      "VentaEU": 8.3,
+      "CompraEU": 2.8,
+      "EmpresaEU": 7.8
+  },
+  {
+      "FechaTipoCambio": "2023-03-31T09:40:50.000000",
+      "Venta": 6.8,
+      "Compra": 9.2,
+      "TcEstacion": 3.2,
+      "VentaEU": 7,
+      "CompraEU": 4,
+      "EmpresaEU": 9.1
+  },
+  {
+      "FechaTipoCambio": "2023-04-24T18:51:59.000000",
+      "Venta": 9.2,
+      "Compra": 8.9,
+      "TcEstacion": 1.5,
+      "VentaEU": 3.6,
+      "CompraEU": 5.8,
+      "EmpresaEU": 8.2
+  },
+  {
+      "FechaTipoCambio": "2023-04-13T11:44:34.000000",
+      "Venta": 7.4,
+      "Compra": 8.5,
+      "TcEstacion": 2.9,
+      "VentaEU": 0.8,
+      "CompraEU": 3.1,
+      "EmpresaEU": 7.1
+  },
+  {
+      "FechaTipoCambio": "2022-08-11T22:19:31.000000",
+      "Venta": 2.4,
+      "Compra": 8.6,
+      "TcEstacion": 5,
+      "VentaEU": 3.4,
+      "CompraEU": 1.8,
+      "EmpresaEU": 9.6
+  },
+  {
+      "FechaTipoCambio": "2022-08-25T15:19:43.000000",
+      "Venta": 4,
+      "Compra": 6.2,
+      "TcEstacion": 2.2,
+      "VentaEU": 8,
+      "CompraEU": 0.1,
+      "EmpresaEU": 4.5
+  },
+  {
+      "FechaTipoCambio": "2023-01-28T12:55:18.000000",
+      "Venta": 3.1,
+      "Compra": 4.4,
+      "TcEstacion": 2.1,
+      "VentaEU": 3.8,
+      "CompraEU": 5.6,
+      "EmpresaEU": 9.8
+  },
+  {
+      "FechaTipoCambio": "2023-01-24T19:44:11.000000",
+      "Venta": 2.3,
+      "Compra": 5.8,
+      "TcEstacion": 5.1,
+      "VentaEU": 6.9,
+      "CompraEU": 9.1,
+      "EmpresaEU": 1.5
+  },
+  {
+      "FechaTipoCambio": "2023-01-06T18:55:33.000000",
+      "Venta": 0.2,
+      "Compra": 3.4,
+      "TcEstacion": 7.2,
+      "VentaEU": 9.8,
+      "CompraEU": 6.5,
+      "EmpresaEU": 7.5
+  },
+  {
+      "FechaTipoCambio": "2022-12-15T18:49:23.000000",
+      "Venta": 6.7,
+      "Compra": 6.4,
+      "TcEstacion": 5.4,
+      "VentaEU": 0.3,
+      "CompraEU": 8.1,
+      "EmpresaEU": 2
+  }
+]

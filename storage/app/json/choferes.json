@@ -1,0 +1,182 @@
+[
+  {
+    "BreveteChofer": "vTgrKaqU",
+    "NombreChofer": "Ana Rodríguez",
+    "DniChofer": "12884580",
+    "Telefono": "195058427",
+    "Estado": "Activo",
+    "FechaCreacion": "2020-03-15T13:36:01.000000",
+    "FechaModificacion": "2019-03-28T17:27:59.000000"
+  },
+  {
+    "BreveteChofer": "HkLEZyOd",
+    "NombreChofer": "Marcela Bolaños",
+    "DniChofer": "26398919",
+    "Telefono": "636584885",
+    "Estado": "Activo",
+    "FechaCreacion": "2021-09-04T13:27:20.000000",
+    "FechaModificacion": "2019-11-16T04:03:31.000000"
+  },
+  {
+    "BreveteChofer": "qJuBTqrl",
+    "NombreChofer": "José González",
+    "DniChofer": "25606349",
+    "Telefono": "017831232",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2019-02-19T22:01:34.000000",
+    "FechaModificacion": "2019-03-26T01:48:38.000000"
+  },
+  {
+    "BreveteChofer": "hIEeCNxw",
+    "NombreChofer": "Emilio Escobar",
+    "DniChofer": "36991942",
+    "Telefono": "234557626",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2019-12-07T01:42:33.000000",
+    "FechaModificacion": "2019-02-28T06:00:00.000000"
+  },
+  {
+    "BreveteChofer": "eszwdGEe",
+    "NombreChofer": "Arturo Cervantes",
+    "DniChofer": "46715398",
+    "Telefono": "169792684",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2022-10-29T06:48:05.000000",
+    "FechaModificacion": "2021-03-09T00:27:14.000000"
+  },
+  {
+    "BreveteChofer": "UuHhKCTE",
+    "NombreChofer": "Valeria Salazar",
+    "DniChofer": "82282867",
+    "Telefono": "205458118",
+    "Estado": "Activo",
+    "FechaCreacion": "2022-04-21T13:32:24.000000",
+    "FechaModificacion": "2019-09-14T17:51:26.000000"
+  },
+  {
+    "BreveteChofer": "WLDtxBHx",
+    "NombreChofer": "Ricardo Silva",
+    "DniChofer": "42439004",
+    "Telefono": "147546122",
+    "Estado": "Activo",
+    "FechaCreacion": "2022-05-04T12:47:33.000000",
+    "FechaModificacion": "2021-03-07T04:11:15.000000"
+  },
+  {
+    "BreveteChofer": "EpOVubvX",
+    "NombreChofer": "Camila Duarte",
+    "DniChofer": "38655431",
+    "Telefono": "574186913",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2019-04-03T21:07:58.000000",
+    "FechaModificacion": "2019-10-16T02:23:04.000000"
+  },
+  {
+    "BreveteChofer": "oGkOtVQv",
+    "NombreChofer": "Natalia Rivas",
+    "DniChofer": "32203446",
+    "Telefono": "317108165",
+    "Estado": "Activo",
+    "FechaCreacion": "2019-08-31T19:40:43.000000",
+    "FechaModificacion": "2020-09-22T17:02:25.000000"
+  },
+  {
+    "BreveteChofer": "HTdZbiku",
+    "NombreChofer": "Miguel Cárdenas",
+    "DniChofer": "72986114",
+    "Telefono": "517440341",
+    "Estado": "Activo",
+    "FechaCreacion": "2022-10-06T04:37:08.000000",
+    "FechaModificacion": "2022-12-18T21:05:27.000000"
+  },
+  {
+    "BreveteChofer": "GwMpLHVb",
+    "NombreChofer": "Javier Molina",
+    "DniChofer": "96491523",
+    "Telefono": "343745382",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2022-01-08T02:19:48.000000",
+    "FechaModificacion": "2019-01-28T06:07:51.000000"
+  },
+  {
+    "BreveteChofer": "YKANoPWV",
+    "NombreChofer": "Renata Rangel",
+    "DniChofer": "28888181",
+    "Telefono": "751708802",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2020-03-05T02:18:01.000000",
+    "FechaModificacion": "2022-07-28T00:06:21.000000"
+  },
+  {
+    "BreveteChofer": "qiStwZca",
+    "NombreChofer": "David Ramírez",
+    "DniChofer": "67318218",
+    "Telefono": "821390594",
+    "Estado": "Activo",
+    "FechaCreacion": "2020-11-23T03:08:14.000000",
+    "FechaModificacion": "2021-11-14T23:15:30.000000"
+  },
+  {
+    "BreveteChofer": "heOVTNaI",
+    "NombreChofer": "Pedro Martínez",
+    "DniChofer": "88211492",
+    "Telefono": "118975059",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2022-12-07T23:39:04.000000",
+    "FechaModificacion": "2022-10-11T15:05:19.000000"
+  },
+  {
+    "BreveteChofer": "iyNAJHiR",
+    "NombreChofer": "Mónica Torres",
+    "DniChofer": "01746946",
+    "Telefono": "056398922",
+    "Estado": "Activo",
+    "FechaCreacion": "2022-05-28T04:06:10.000000",
+    "FechaModificacion": "2019-05-03T19:35:14.000000"
+  },
+  {
+    "BreveteChofer": "HZXTOrmm",
+    "NombreChofer": "Laura García",
+    "DniChofer": "08204842",
+    "Telefono": "294312047",
+    "Estado": "Activo",
+    "FechaCreacion": "2022-06-29T02:14:19.000000",
+    "FechaModificacion": "2020-03-05T00:06:37.000000"
+  },
+  {
+    "BreveteChofer": "MuYvLtWs",
+    "NombreChofer": "Valentina Mendoza",
+    "DniChofer": "74291184",
+    "Telefono": "855133696",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2019-04-15T07:03:41.000000",
+    "FechaModificacion": "2022-09-09T17:23:58.000000"
+  },
+  {
+    "BreveteChofer": "tlwNejYd",
+    "NombreChofer": "Victoria Fuentes",
+    "DniChofer": "89059242",
+    "Telefono": "607238841",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2021-09-03T13:15:54.000000",
+    "FechaModificacion": "2022-04-30T04:57:34.000000"
+  },
+  {
+    "BreveteChofer": "cXDTNmrb",
+    "NombreChofer": "Elena Paredes",
+    "DniChofer": "68544477",
+    "Telefono": "418534411",
+    "Estado": "Activo",
+    "FechaCreacion": "2020-07-07T19:08:34.000000",
+    "FechaModificacion": "2022-07-19T03:32:13.000000"
+  },
+  {
+    "BreveteChofer": "wEbioOLt",
+    "NombreChofer": "Federico Campos",
+    "DniChofer": "14423472",
+    "Telefono": "078987084",
+    "Estado": "Inactivo",
+    "FechaCreacion": "2020-07-16T10:57:44.000000",
+    "FechaModificacion": "2020-05-02T01:04:33.000000"
+  }
+]

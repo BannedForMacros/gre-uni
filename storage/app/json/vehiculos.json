@@ -1,0 +1,102 @@
+[
+  {
+    "PlacaVehiculo": "ABC123",
+    "MarcaVehiculo": "Toyota",
+    "CodTransportista": 1,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario1",
+    "UsuarioModificador": "usuario1",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "XYZ789",
+    "MarcaVehiculo": "Honda",
+    "CodTransportista": 2,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario2",
+    "UsuarioModificador": "usuario2",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "DEF456",
+    "MarcaVehiculo": "Ford",
+    "CodTransportista": 3,
+    "Estado": "Inactivo",
+    "UsuarioCreador": "usuario3",
+    "UsuarioModificador": "usuario3",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "GHI789",
+    "MarcaVehiculo": "Chevrolet",
+    "CodTransportista": 4,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario4",
+    "UsuarioModificador": "usuario4",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "JKL012",
+    "MarcaVehiculo": "Volkswagen",
+    "CodTransportista": 5,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario5",
+    "UsuarioModificador": "usuario5",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "MNO345",
+    "MarcaVehiculo": "Nissan",
+    "CodTransportista": 6,
+    "Estado": "Inactivo",
+    "UsuarioCreador": "usuario6",
+    "UsuarioModificador": "usuario6",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "PQR678",
+    "MarcaVehiculo": "Mercedes-Benz",
+    "CodTransportista": 7,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario7",
+    "UsuarioModificador": "usuario7",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "STU901",
+    "MarcaVehiculo": "BMW",
+    "CodTransportista": 8,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario8",
+    "UsuarioModificador": "usuario8",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "VWX234",
+    "MarcaVehiculo": "Audi",
+    "CodTransportista": 9,
+    "Estado": "Inactivo",
+    "UsuarioCreador": "usuario9",
+    "UsuarioModificador": "usuario9",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  },
+  {
+    "PlacaVehiculo": "YZA567",
+    "MarcaVehiculo": "Mazda",
+    "CodTransportista": 10,
+    "Estado": "Activo",
+    "UsuarioCreador": "usuario10",
+    "UsuarioModificador": "usuario10",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "FechaModificacion": "2023-06-08T10:31:34.187"
+  }
+]

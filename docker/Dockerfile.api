@@ -1,0 +1,9 @@
+# ApiGRE - fat JAR sobre JRE 8
+# Java 8 es el minimo comun denominador con Windows 7.
+FROM eclipse-temurin:8-jre-alpine
+
+WORKDIR /opt/gre
+COPY target/api-gre.jar app.jar
+
+EXPOSE 8181
+ENTRYPOINT ["java", "-Xms128m", "-Xmx512m", "-Dfile.encoding=UTF-8", "-jar", "app.jar"]

@@ -1,0 +1,58 @@
+[
+  {
+    "CodAlmacen": 1,
+    "Descripcion": "Almacén A",
+    "CodEstacion": 1,
+    "Estado": "Activo",
+    "UsuarioCreador": "Usuario1",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "UsuarioModificador": "Usuario1",
+    "FechaModificacion": "2023-06-08T10:31:34.187",
+    "CodigoLap": "ABC123",
+    "CodInterno": "INT001",
+    "EstadoProduccion": true,
+    "Kardex": true
+  },
+  {
+    "CodAlmacen": 2,
+    "Descripcion": "Almacén B",
+    "CodEstacion": 1,
+    "Estado": "Activo",
+    "UsuarioCreador": "Usuario2",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "UsuarioModificador": "Usuario2",
+    "FechaModificacion": "2023-06-08T10:31:34.187",
+    "CodigoLap": "DEF456",
+    "CodInterno": "INT002",
+    "EstadoProduccion": true,
+    "Kardex": true
+  },
+  {
+    "CodAlmacen": 3,
+    "Descripcion": "Almacén C",
+    "CodEstacion": 2,
+    "Estado": "Inactivo",
+    "UsuarioCreador": "Usuario3",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "UsuarioModificador": "Usuario3",
+    "FechaModificacion": "2023-06-08T10:31:34.187",
+    "CodigoLap": "GHI789",
+    "CodInterno": "INT003",
+    "EstadoProduccion": false,
+    "Kardex": true
+  },
+  {
+    "CodAlmacen": 4,
+    "Descripcion": "Almacén D",
+    "CodEstacion": 2,
+    "Estado": "Activo",
+    "UsuarioCreador": "Usuario4",
+    "FechaCreacion": "2023-06-08T10:31:34.187",
+    "UsuarioModificador": "Usuario4",
+    "FechaModificacion": "2023-06-08T10:31:34.187",
+    "CodigoLap": "JKL013",
+    "CodInterno": "INT004",
+    "EstadoProduccion": true,
+    "Kardex": false
+  }
+]

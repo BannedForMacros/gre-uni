@@ -1,0 +1,86 @@
+# =============================================================================
+# Entorno completo de Guias de Remision.
+#
+# PARA QUE SIRVE
+#   - Desarrollo y pruebas: levantar todo el stack con un comando, en la misma
+#     version de PHP y Java que corre en casa del cliente.
+#   - Clientes con Windows 10 Pro / Server 2016+: metodo de instalacion.
+#
+# PARA QUE NO SIRVE
+#   - Clientes con Windows 7: Docker Desktop NO corre ahi. Para ellos el metodo
+#     es el instalador nativo (ver deploy/).
+#
+# EL SQL SERVER NO SE CONTENERIZA
+#   Es el DataMart del ERP del cliente, ya instalado en su maquina. La ApiGRE
+#   lo alcanza por host.docker.internal.
+# =============================================================================
+version: "3.8"
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: gre-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-guia_electronica}
+      DB_USERNAME: ${DB_USERNAME:-gre}
+      DB_PASSWORD: ${DB_PASSWORD:-gre}
+      GRE_API_URL: http://api:8181/api/v1
+      GRE_IGV_TASA: ${GRE_IGV_TASA:-0.18}
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - app_storage:/var/www/html/storage/app/public
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../api-gre
+      dockerfile: ../guias-electronicas-unificado/docker/Dockerfile.api
+    container_name: gre-api
+    environment:
+      # host.docker.internal = el SQL Server del cliente, fuera del contenedor
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://${SQLSRV_HOST:-host.docker.internal}:${SQLSRV_PORT:-1433};DatabaseName=${SQLSRV_DB:-db_cliente};encrypt=false;trustServerCertificate=true"
+      SPRING_DATASOURCE_USERNAME: ${SQLSRV_USER:-sa}
+      SPRING_DATASOURCE_PASSWORD: ${SQLSRV_PASSWORD}
+      GRE_IGV_TASA: ${GRE_IGV_TASA:-0.18}
+    ports:
+      - "${API_PORT:-8181}:8181"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8181/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:5.7
+    container_name: gre-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-guia_electronica}
+      MYSQL_USER: ${DB_USERNAME:-gre}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-gre}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  app_storage:
