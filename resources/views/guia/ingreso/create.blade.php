@@ -328,7 +328,8 @@
             </div>
 
             <div class="row mt-2">
-              <div class="col-md-12 table-responsive">
+              <div class="col-md-12">
+                <div class="gre-scroll">
                 <table class="table table-hover table-sm table-bordered gre-detalle">
                   <thead>
                     <th class="text-center">Cod. Barras</th>
@@ -384,6 +385,7 @@
                     </tr>
                   </tbody>
                 </table>
+                </div>{{-- /.gre-scroll --}}
               </div>
             </div>
           </div>
@@ -406,21 +408,21 @@
                      Antes habia que bajar hasta el final para saber en cuanto iba. --}}
                 <div class="gre-totales">
                   <div class="row g-2">
-                    <div class="col-3">
+                    <div class="col-6 col-xxl-3">
                       <label class="form-label" for="monto_descuento">Descuento</label>
                       <input class="form-control form-control-sm" type="text" id="monto_descuento" readonly :value="money(montoDescuento)">
                     </div>
-                    <div class="col-3">
-                      <label class="form-label" for="importe_sin_igv">Valor venta</label>
+                    <div class="col-6 col-xxl-3">
+                      <label class="form-label" for="importe_sin_igv">Valor</label>
                       <input class="form-control form-control-sm" type="text" id="importe_sin_igv" readonly :value="money(valorVenta)">
                     </div>
-                    <div class="col-3">
+                    <div class="col-6 col-xxl-3">
                       <label class="form-label" for="monto_igv">
                         IGV <span x-text="'(' + (tasaIgv * 100).toFixed(0) + '%)'"></span>
                       </label>
                       <input class="form-control form-control-sm" type="text" id="monto_igv" readonly :value="money(montoIgv)">
                     </div>
-                    <div class="col-3 gre-total-final">
+                    <div class="col-6 col-xxl-3 gre-total-final">
                       <label class="form-label" for="total_venta">Total</label>
                       <input class="form-control form-control-sm" type="text" id="total_venta" readonly :value="money(totalVenta)">
                     </div>

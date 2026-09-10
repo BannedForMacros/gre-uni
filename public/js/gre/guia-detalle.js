@@ -49,8 +49,25 @@ window.greDetalleGuia = function (config) {
             return this.redondear(l.precioSinIgv);
         },
 
+        /**
+         * Importe de la linea tal como se muestra.
+         *
+         * DERIVA de importeDeLinea() en vez de recalcularse desde el precio
+         * mostrado. Recalcular introducia un centimo de diferencia, porque
+         * precioMostrado() redondea a 2 decimales antes de multiplicar:
+         *
+         *     3 x 14.407         = 43.221  -10%  -> 38.90   (correcto)
+         *     3 x redondear(14.407) = 43.23 -10% -> 38.91   (mal)
+         *
+         * El importe de la fila SIEMPRE tiene que ser lo que esa fila aporta
+         * al total, o el usuario suma las filas y no le cuadra.
+         */
         importeMostrado: function (l) {
-            return this.redondear(this.precioMostrado(l) * (Number(l.cantidad) || 0));
+            var base = this.importeDeLinea(l);
+            if (this.baseCalculo === 2 && l.afectoIgv) {
+                return this.redondear(base * (1 + this.tasaIgv));
+            }
+            return base;
         },
 
         importeDeLinea: function (l) {

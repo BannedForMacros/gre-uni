@@ -95,5 +95,13 @@ eq(c.totalCantidad, 5, 'total cantidad');
 eq(c.montoDescuento, 10, 'monto descuento');
 eq(c.pesoTotal, 4.5, 'peso total');
 
+console.log('\n--- el importe de la fila cuadra con el total ---');
+c = window.greDetalleGuia({ lineas: [linea({ cantidad: 3, precioSinIgv: 14.407, porcentajeDescuento: 10 })] });
+eq(c.importeMostrado(c.lineas[0]), c.valorVenta, 'importe mostrado = aporte al total');
+eq(c.importeMostrado(c.lineas[0]), 38.9, 'con 10% de descuento');
+c.baseCalculo = 2;
+eq(c.importeMostrado(c.lineas[0]), 45.9, 'con IGV incluido tambien descuenta');
+eq(c.valorVenta, 38.9, 'y el total no cambia al cambiar la vista');
+
 console.log('\n' + (fallos === 0 ? 'OK (' + total + ' pruebas)' : fallos + ' de ' + total + ' FALLARON'));
 process.exit(fallos === 0 ? 0 : 1);

@@ -96,7 +96,21 @@
   font-family: inherit;
 }
 
-/* --- Tabla del detalle ---------------------------------------------------- */
+/* --- Tabla del detalle ----------------------------------------------------
+   El contenedor scrollea, no la pagina. Sin una altura acotada aqui,
+   position:sticky del thead no tiene donde pegarse: Bootstrap le pone
+   overflow-x:auto a .table-responsive, y un ancestro con overflow pero sin
+   altura hace que el sticky no haga nada. Con 28 lineas el usuario quedaba
+   sin cabeceras Y sin totales a la vista. */
+.gre-scroll {
+  max-height: min(58vh, 30rem);
+  overflow: auto;
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .5rem;
+}
+
+.gre-detalle { margin-bottom: 0; }
+
 .gre-detalle thead th {
   position: sticky;
   top: 0;
@@ -122,7 +136,11 @@
   text-align: right;
 }
 
-.gre-detalle input.form-control { font-variant-numeric: tabular-nums; }
+.gre-detalle input.form-control {
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5rem;   /* sin esto el input numerico recorta el valor: "10" se veia "1" */
+  text-align: right;
+}
 
 /* Una línea bonificada no suma: se marca, no se esconde. */
 .gre-detalle tr.gre-bonificada td { color: var(--gre-texto-tenue); }
@@ -141,11 +159,10 @@
 .gre-vacio span { font-size: .85rem; }
 
 /* --- Totales --------------------------------------------------------------
-   Se quedan a la vista mientras se cargan articulos. Antes habia que bajar
-   hasta el final para saber en cuanto iba la guia. */
+   Quedan a la vista porque la tabla scrollea dentro de .gre-scroll y la pagina
+   ya no crece con cada articulo. Antes habia que bajar hasta el final para
+   saber en cuanto iba la guia. */
 .gre-totales {
-  position: sticky;
-  bottom: 0;
   z-index: 3;
   background: var(--gre-superficie);
   border-top: 1px solid var(--gre-borde);
@@ -155,6 +172,7 @@
 }
 
 .gre-totales .form-label {
+  white-space: nowrap;      /* "Valor venta" partia en dos lineas y descuadraba la fila */
   font-size: .72rem;
   text-transform: uppercase;
   letter-spacing: .03em;
@@ -163,6 +181,9 @@
 }
 
 .gre-totales input { font-weight: 600; }
+
+/* Sin esto el total se recortaba: "88.40" se veia "88.4(" */
+.gre-totales input { min-width: 0; padding-inline: .5rem; }
 
 .gre-total-final input {
   font-size: 1.05rem;
