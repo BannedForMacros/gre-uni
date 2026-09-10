@@ -1,7 +1,7 @@
-﻿@extends('layouts.app')
+﻿
 
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="gre">
   <div class="container-fluid">
     <div class="row justify-content-center">
@@ -9,8 +9,8 @@
         <h5><i class="fa fa-ticket"></i> Guia de Ingreso</h5>
         <form name="form_store" id="form_store" onkeydown="return event.key != 'Enter';">
           <input type="hidden" name="save_local_storage" id="save_local_storage" value="false">
-          <input type="hidden" name="id_continuar" value="{{ $guia->id ?? '' }}" >
-          @csrf
+          <input type="hidden" name="id_continuar" value="<?php echo e($guia->id ?? ''); ?>" >
+          <?php echo csrf_field(); ?>
           <div class="row">
             <div class="col-md-2">
               <label class="form-label">Guia Interna</label>
@@ -22,11 +22,12 @@
             <div class="col-md-2 mb-2" id="div_serie_interna" style="display:none ">
               <label class="form-label">Serie</label>
               <select class="form-select" name="serie" id="serie">
-                @foreach ($listSeries ?? [] as $item)
-                  <option value="{{ $item->numserie }}" {{ $item->selected ?? '' }}>
-                    {{ $item->numserie }}
+                <?php $__currentLoopData = $listSeries ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                  <option value="<?php echo e($item->numserie); ?>" <?php echo e($item->selected ?? ''); ?>>
+                    <?php echo e($item->numserie); ?>
+
                   </option>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
               </select>
             </div>
             <div class="col-md-3 mb-2" id="div_serie_externa">
@@ -47,7 +48,7 @@
 
                 <div class="col-md-3 mb-2">
                   <label class="form-label">Fecha Emision</label>
-                  <input type="date" class="form-control" value="{{ date('Y-m-d') }}" id="fecha_emision" name="fecha_emision">
+                  <input type="date" class="form-control" value="<?php echo e(date('Y-m-d')); ?>" id="fecha_emision" name="fecha_emision">
                 </div>
                 <div class="col-md-3 col-sm-4 mb-2">
                   <label class="form-label">Fecha Vencimiento</label>
@@ -62,9 +63,9 @@
                       <label class="form-label mt-2">Codigo</label>
                     </div>
                     <div class="col-md-6">
-                      {{-- <input class="form-control" type="text" name="b_codigo_empleado" id="b_codigo_empleado" placeholder="Codigo Empleado"> --}}
+                      
                       <div class="input-group">
-                        <input type="text" class="form-control" id="vendedor_codigo" placeholder="Ingresar codigo" aria-describedby="button-addon2" value="{{ $guia->vendedor_id ?? '' }}">
+                        <input type="text" class="form-control" id="vendedor_codigo" placeholder="Ingresar codigo" aria-describedby="button-addon2" value="<?php echo e($guia->vendedor_id ?? ''); ?>">
                         <button class="btn btn-primary" type="button" id="btnBuscarVendedor"><i class="fa fa-search"></i></button>
                       </div>
                     </div>
@@ -74,12 +75,12 @@
                     <div class="col-md-12">
                       <label class="form-label">Contacto</label>
                       <select class="form-select " name="vendedor_id" id="vendedor_id" style="width: 100%">
-                        @foreach ($listVendedores as $item)
-                          <option value="{{ $item->codTrabajador }}"
-                            data-vendedor_nombre="{{ "{$item->apellidos} {$item->nombres}" }}"
-                            {{ ($item->selected ?? '') == 'selected' ? 'selected' : '' }}>
-                            {{ "[{$item->codTrabajador}] {$item->apellidos} {$item->nombres}" }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = $listVendedores; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                          <option value="<?php echo e($item->codTrabajador); ?>"
+                            data-vendedor_nombre="<?php echo e("{$item->apellidos} {$item->nombres}"); ?>"
+                            <?php echo e(($item->selected ?? '') == 'selected' ? 'selected' : ''); ?>>
+                            <?php echo e("[{$item->codTrabajador}] {$item->apellidos} {$item->nombres}"); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                       </select>
                     </div>
 
@@ -90,18 +91,18 @@
                     <input type="text" class="form-control" readonly value="GENERADA">
                   </div>
 
-                  @if(\App\Support\ConfiguracionEmpresa::usaConsignados())
+                  <?php if(\App\Support\ConfiguracionEmpresa::usaConsignados()): ?>
                   <div class="col-md-6 mb-2">
                     <label class="form-label text-primary" style="font-weight: bold; font-size: 0.85rem;">¿TIENE PRODUCTOS CONSIGNADOS?</label>
 
                     <div class="form-check mt-1">
                       <input type="hidden" name="es_consignado" value="0">
                       <input class="form-check-input" id="es_consignado_master" name="es_consignado"
-                            type="checkbox" value="1" {{ ($guia->es_consignado ?? 0) == 1 ? 'checked' : '' }} />
+                            type="checkbox" value="1" <?php echo e(($guia->es_consignado ?? 0) == 1 ? 'checked' : ''); ?> />
                       <label class="form-check-label" for="es_consignado_master">Productos Consignados</label>
                     </div>
                   </div>
-                  @endif
+                  <?php endif; ?>
               </div>
 
               <div class="row">
@@ -111,21 +112,21 @@
                     <div class="col-md-4">
                       <div class="form-check">
                         <input class="form-check-input radio_relacion_doc" type="radio" name="relacion_pedido" id="pedido"
-                          value="1" {{ (($guia->relacion_pedido ?? '') == 1) ? 'checked' : '' ; }}>
+                          value="1" <?php echo e((($guia->relacion_pedido ?? '') == 1) ? 'checked' : '' ); ?>>
                         <label class="form-check-label" for="pedido">
                           Pedido
                         </label>
                       </div>
                       <div class="form-check">
                         <input class="form-check-input radio_relacion_doc" type="radio" name="relacion_pedido" id="recepcion"
-                          value="2" {{ (($guia->relacion_pedido ?? 2) == 2) ? 'checked' : '' ; }}>
+                          value="2" <?php echo e((($guia->relacion_pedido ?? 2) == 2) ? 'checked' : '' ); ?>>
                         <label class="form-check-label" for="recepcion" >
                           Recepcion
                         </label>
                       </div>
                     </div>
                     <div class="col-md-8">
-						{{-- <label class="form-label">Serie-Nro</label> --}}
+						
 						<div class="row">
 							<div class="col-md-6">
 								<input 
@@ -134,7 +135,7 @@
 									name="pedido_serie" 
 									id="pedido_serie" 
 									placeholder="Serie" 
-									value="{{ $guia->pedido_serie ?? '' }}"
+									value="<?php echo e($guia->pedido_serie ?? ''); ?>"
 									/* CAMBIO 2: Este código impide escribir letras, solo deja números 0-9 */
 									oninput="this.value = this.value.replace(/[^0-9]/g, '')"
 									maxlength="4"
@@ -148,7 +149,7 @@
 									name="pedido_numero" 
 									id="pedido_numero" 
 									placeholder="Numero" 
-									value="{{ $guia->pedido_numero ?? '' }}"
+									value="<?php echo e($guia->pedido_numero ?? ''); ?>"
 									/* También protegemos el número por si acaso */
 									oninput="this.value = this.value.replace(/[^0-9]/g, '')"
 								>
@@ -177,18 +178,19 @@
                     <div class="col-md-9">
                       <select class="form-select" id="proveedor_id" name="proveedor_id"
                         data-placeholder="Buscar un proveedor" style="width: 100%">
-                        @if (count($listProveedores) > 0)
-                          @foreach ($listProveedores as $item)
-                            <option value="{{ $item->codProveedor }}" data-proveedor_nombre="{{ $item->nombreproveedor }}"
-                              data-proveedor_ruc="{{ $item->ruc }}" selected="selected">
-                              {{ "[$item->ruc] $item->nombreproveedor" }}
+                        <?php if(count($listProveedores) > 0): ?>
+                          <?php $__currentLoopData = $listProveedores; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($item->codProveedor); ?>" data-proveedor_nombre="<?php echo e($item->nombreproveedor); ?>"
+                              data-proveedor_ruc="<?php echo e($item->ruc); ?>" selected="selected">
+                              <?php echo e("[$item->ruc] $item->nombreproveedor"); ?>
+
                             </option>
-                          @endforeach
+                          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             
-                        @endif
+                        <?php endif; ?>
                       </select>
-                      <input type="hidden" id="proveedor_nombre" value="{{ $listProveedores[0]->nombreproveedor ?? '' }}">
-                      <input type="hidden" id="proveedor_ruc" value="{{ $listProveedores[0]->ruc ?? ''}}">
+                      <input type="hidden" id="proveedor_nombre" value="<?php echo e($listProveedores[0]->nombreproveedor ?? ''); ?>">
+                      <input type="hidden" id="proveedor_ruc" value="<?php echo e($listProveedores[0]->ruc ?? ''); ?>">
                     </div>
                   </div>
                 </div>
@@ -212,30 +214,30 @@
                 <div class="col-md-3">
                   <label class="form-label">F. Pago</label>
                   <select class="form-select" name="forma_pago_id" id="forma_pago_id">
-                    @foreach ($listFormasPago as $item)
-                      <option value="{{ $item->codFormaPago }}" data-nombre="{{ $item->descripcion }}">
-                        {{ $item->descripcion }}</option>
-                    @endforeach
+                    <?php $__currentLoopData = $listFormasPago; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                      <option value="<?php echo e($item->codFormaPago); ?>" data-nombre="<?php echo e($item->descripcion); ?>">
+                        <?php echo e($item->descripcion); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </select>
                 </div>
                 <div class="col-md-5">
                   <label class="form-label">Tipo Operacion</label>
                   <select class="form-select" name="tipo_operacion_id" id="tipo_operacion_id">
-                    @foreach ($listTipoOperacion as $item)
-                      @if ($item->ingresoSalida == 'Ingreso')
-                        <option value="{{ $item->tipoOperacion }}" data-nombre="{{ $item->descripcion }}" {{ $item->selected ?? '' }}>
-                          {{ $item->descripcion }}</option>
-                      @endif
-                    @endforeach
+                    <?php $__currentLoopData = $listTipoOperacion; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                      <?php if($item->ingresoSalida == 'Ingreso'): ?>
+                        <option value="<?php echo e($item->tipoOperacion); ?>" data-nombre="<?php echo e($item->descripcion); ?>" <?php echo e($item->selected ?? ''); ?>>
+                          <?php echo e($item->descripcion); ?></option>
+                      <?php endif; ?>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </select>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Almacen</label>
                   <select class="form-select" name="codalmacen" id="codalmacen">
-                    @foreach ($listAlmacenes as $item)
-                      <option value="{{ $item->codAlmacen }}" data-nombre="{{ $item->descripcion }}"
-                        data-codestacion="{{ $item->codEstacion }}" {{ $item->selected ?? '' }}>{{ $item->descripcion }}</option>
-                    @endforeach
+                    <?php $__currentLoopData = $listAlmacenes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                      <option value="<?php echo e($item->codAlmacen); ?>" data-nombre="<?php echo e($item->descripcion); ?>"
+                        data-codestacion="<?php echo e($item->codEstacion); ?>" <?php echo e($item->selected ?? ''); ?>><?php echo e($item->descripcion); ?></option>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                   </select>
                 </div>
               </div>
@@ -246,17 +248,13 @@
 
         </form>
 
-        {{-- ------------------------------------------------------------------
-             Scope de Alpine para el detalle de la guia.
-             El estado (lineas + tasa de IGV) vive aqui, no en atributos data-*
-             de cada <tr> como antes. Los totales se derivan solos.
-             ------------------------------------------------------------------ --}}
+        
         <div x-data="greDetalleGuia({
-                lineas: {{ Js::from($lineasDetalle ?? []) }},
-                tasaIgv: {{ config('gre.igv.tasa', 0.18) }},
+                lineas: <?php echo e(Js::from($lineasDetalle ?? [])); ?>,
+                tasaIgv: <?php echo e(config('gre.igv.tasa', 0.18)); ?>,
                 rutas: {
-                    agregarItem:    '{{ route('guiaingreso.agregarItem') }}',
-                    cargarOtraGuia: '{{ route('guiaingreso.cargarOtraGuia') }}'
+                    agregarItem:    '<?php echo e(route('guiaingreso.agregarItem')); ?>',
+                    cargarOtraGuia: '<?php echo e(route('guiaingreso.cargarOtraGuia')); ?>'
                 }
              })"
              x-cloak>
@@ -279,7 +277,7 @@
             </label>
 
             <form name="form_buscar_articulo" id="form_buscar_articulo">
-              @csrf
+              <?php echo csrf_field(); ?>
               <div class="row">
                 <div class="col-md-2">
                   <select class="form-select" id="tipo_busqueda_articulo">
@@ -290,25 +288,15 @@
                   </select>
                 </div>
                 <div class="col-md-8 mb-2" id="div_form_buscar_articulo">
-                  {{-- <select class="form-select select_2" name="producto_id" id="producto_id" style="width: 100%"
-                    data-placeholder="Buscar un articulo">
-                    @foreach ($listArticulos as $item)
-                      <option data-codigo_barra="{{ $item->CodBarra }}" data-cod_plu="{{ $item->CodPlu }}"
-                        data-descripcion="{{ $item->NombreArticulo }}" data-precio_publico="{{ $item->PrecioPublico }}"
-                        data-precio_sin_igv="{{ $item->PrecioSinIGV }}" value="{{ $item->CodArticulo }}">
-                        [{{ $item->CodPlu }}] {{ $item->NombreArticulo }}
-                      </option>
-                    @endforeach
-                  </select> --}}
+                  
                 </div>
                 <div class="col-md-2">
-                  {{-- <button class="btn btn-success btn-primary mt-1" id="btnAdd"><i class="fa fa-plus"></i>
-                    Agregar</button> --}}
+                  
                 </div>
               </div>
 
             </form>
-            </div>{{-- /.gre-buscador --}}
+            </div>
 
             <div>
               <input type="hidden" id="producto_id" name="producto_id">
@@ -344,7 +332,7 @@
                     <th class="text-center">Accion</th>
                   </thead>
                   <tbody id="tbody">
-                    {{-- El estado vive en el componente, no en atributos data-* del DOM. --}}
+                    
                     <template x-for="(l, i) in lineas" :key="l.codArticulo">
                       <tr :class="{ 'gre-bonificada': l.bonificacion }">
                         <td class="align-middle" x-text="l.codigoBarra"></td>
@@ -396,14 +384,13 @@
                 <div class="row">
                   <div class="col-md-10">
                     <label class="form-label">Comentario</label>
-                    <textarea class="form-control" name="comentario" id="comentario" rows="2">{{ $guia->comentario ?? '' }}</textarea>
+                    <textarea class="form-control" name="comentario" id="comentario" rows="2"><?php echo e($guia->comentario ?? ''); ?></textarea>
 
                   </div>
                 </div>
               </div>
               <div class="col-md-4">
-                {{-- Los totales quedan a la vista mientras se cargan articulos.
-                     Antes habia que bajar hasta el final para saber en cuanto iba. --}}
+                
                 <div class="gre-totales">
                   <div class="row g-2">
                     <div class="col-3">
@@ -448,15 +435,12 @@
                     <label class="form-label">Cantidad</label>
                     <input class="form-control" type="text" id="total_cantidad" readonly :value="totalCantidad">
                   </div>
-                  {{-- <div class="col-md-3">
-                    <label class="form-label">Flete</label>
-                    <input class="form-control" type="text" readonly>
-                  </div> --}}
+                  
                   <div class="col-md-3">
                     <label class="form-label">Base Calculo</label>
                     <select class="form-select" name="base_calculo" id="base_calculo" x-model.number="baseCalculo">
-                      <option value="2" {{ (($guia->base_calculo ?? '') == 2) ? 'selected' : '' ; }}>Con IGV</option>
-                      <option value="1" {{ (($guia->base_calculo ?? '') == 1) ? 'selected' : '' ; }}>Sin IGV</option>
+                      <option value="2" <?php echo e((($guia->base_calculo ?? '') == 2) ? 'selected' : '' ); ?>>Con IGV</option>
+                      <option value="1" <?php echo e((($guia->base_calculo ?? '') == 1) ? 'selected' : '' ); ?>>Sin IGV</option>
                     </select>
                   </div>
                 </div>
@@ -469,45 +453,36 @@
         <div class="row">
           <div class="col-md-12">
             <br>
-            <a type="button" href="{{ route('guiaingreso.index') }}" class="btn btn-danger float-start"><i
+            <a type="button" href="<?php echo e(route('guiaingreso.index')); ?>" class="btn btn-danger float-start"><i
                 class="fa fa-arrow-left" aria-hidden="true"></i>
               Cancelar</a>
             <button type="submit" form="form_store" class="btn btn-primary float-end" ><i class="fa fa-save" aria-hidden="true"></i>
               Guardar</button>
 
             <!-- Example split danger button -->
-            {{-- <div class="btn-group float-end">
-              <button type="submit" form="form_store" class="btn btn-primary"><i class="fa fa-save"
-                  aria-hidden="true"></i> Guardar</button>
-              <button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="visually-hidden">Toggle Dropdown</span>
-              </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" style="cursor: pointer" id="btnGuardarAvance"><i
-                      class="fa fa-download"></i> <b>Guardar Avance</b></a></li>
-              </ul>
-            </div> --}}
+            
 
           </div>
         </div>
       </div>
     </div>
 
-    </div>{{-- /x-data greDetalleGuia --}}
+    </div>
     <div id="modales"></div>
   </div>
 
-  @push('js-scripts')
-    {{-- Alpine 3: 15 KB, sin build. defer es obligatorio. --}}
-    <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
-    <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/create.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/articulo.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/storage.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/cargar_de_guias.js?v=') }}{{ rand() }}"></script>
+  <?php $__env->startPush('js-scripts'); ?>
+    
+    <script defer src="<?php echo e(asset('js/vendor/alpine.min.js')); ?>"></script>
+    <script src="<?php echo e(asset('js/gre/http.js?v=')); ?><?php echo e(rand()); ?>"></script>
+    <script src="<?php echo e(asset('js/gre/guia-detalle.js?v=')); ?><?php echo e(rand()); ?>"></script>
+    <script src="<?php echo e(asset('js/guias/ingreso/create.js?v=')); ?><?php echo e(rand()); ?>"></script>
+    <script src="<?php echo e(asset('js/guias/ingreso/articulo.js?v=')); ?><?php echo e(rand()); ?>"></script>
+    <script src="<?php echo e(asset('js/guias/ingreso/storage.js?v=')); ?><?php echo e(rand()); ?>"></script>
+    <script src="<?php echo e(asset('js/guias/ingreso/cargar_de_guias.js?v=')); ?><?php echo e(rand()); ?>"></script>
 
-  @endpush
-</div>{{-- /.gre --}}
-@endsection
+  <?php $__env->stopPush(); ?>
+</div>
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH /Users/jesus/DataBussines/guias-electronicas-unificado/resources/views/guia/ingreso/create.blade.php ENDPATH**/ ?>

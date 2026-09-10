@@ -169,7 +169,23 @@ window.greDetalleGuia = function (config) {
                 if (resp.igv && typeof resp.igv.tasa === 'number') {
                     self.tasaIgv = resp.igv.tasa;
                 }
+                self.volverAlBuscador();
             });
+        },
+
+        /**
+         * Devuelve el foco al buscador y lo deja limpio.
+         *
+         * El almacenero carga entre 20 y 80 articulos por guia, casi siempre
+         * escaneando. Sin esto tiene que tomar el mouse despues de cada uno,
+         * que es el gesto que mas veces se repite en la pantalla.
+         */
+        volverAlBuscador: function () {
+            var input = document.getElementById('producto_valor');
+            if (!input) { return; }
+            input.value = '';
+            input.focus();
+            input.select();
         },
 
         quitar: function (indice) {

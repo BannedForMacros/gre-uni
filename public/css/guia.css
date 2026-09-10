@@ -1,0 +1,196 @@
+/* =============================================================================
+   Guía de Remisión — pantalla de registro
+   -----------------------------------------------------------------------------
+   Superficie de captura de datos. El usuario es un almacenero cargando 20-80
+   artículos por guía, con teclado, en pantallas chicas y Chrome 109.
+   Prioridad: escaneabilidad, foco visible y que los totales nunca se pierdan
+   de vista. Construido sobre la paleta existente, no la reemplaza.
+   ========================================================================== */
+
+:root {
+  --gre-acento:        #3874ff;
+  --gre-acento-suave:  #e8f0ff;
+  --gre-texto:         #31374a;
+  --gre-texto-tenue:   #5e6e82;
+  --gre-borde:         #cbd0dd;
+  --gre-borde-tenue:   #eff2f6;
+  --gre-superficie:    #ffffff;
+  --gre-fondo:         #f5f7fa;
+  --gre-ok:            #00864e;
+  --gre-alerta:        #e5780b;
+}
+
+/* --- Superficies del navegador ------------------------------------------
+   Selección, caret y foco vienen sin diseño por defecto. Se toman de la
+   paleta para que la pantalla se vea construida, no ensamblada. */
+.gre ::selection      { background: var(--gre-acento-suave); color: var(--gre-texto); }
+.gre input, .gre select, .gre textarea { caret-color: var(--gre-acento); }
+
+.gre .form-control:focus,
+.gre .form-select:focus,
+.gre .btn:focus-visible,
+.gre .form-check-input:focus {
+  border-color: var(--gre-acento);
+  box-shadow: 0 0 0 3px rgba(56, 116, 255, .18);
+  outline: none;
+}
+
+/* --- Agrupación de la cabecera ------------------------------------------
+   Antes eran 16 campos en un bloque plano. El usuario tenia que leerlos todos
+   para encontrar uno. Ahora se agrupan por lo que significan. */
+.gre-grupo {
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .5rem;
+  padding: 1rem 1rem .5rem;
+  margin-bottom: 1rem;
+  background: var(--gre-superficie);
+}
+
+.gre-grupo > legend,
+.gre-grupo > .gre-grupo-titulo {
+  float: none;
+  width: auto;
+  padding: 0 .4rem;
+  margin: 0 0 .75rem -.4rem;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--gre-texto-tenue);
+}
+
+/* --- Buscador de artículos ----------------------------------------------
+   Es la accion que se repite decenas de veces por guia. Antes parecia un
+   campo mas entre dieciseis. */
+.gre-buscador {
+  background: var(--gre-acento-suave);
+  border: 1px solid rgba(56, 116, 255, .25);
+  border-radius: .5rem;
+  padding: .875rem 1rem;
+}
+
+.gre-buscador .form-label {
+  font-weight: 600;
+  color: var(--gre-texto);
+  margin-bottom: .35rem;
+}
+
+.gre-atajo {
+  display: inline-block;
+  font-size: .7rem;
+  color: var(--gre-texto-tenue);
+  margin-left: .5rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.gre-atajo kbd {
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde);
+  border-bottom-width: 2px;
+  border-radius: .25rem;
+  padding: .05rem .3rem;
+  font-size: .7rem;
+  color: var(--gre-texto);
+  font-family: inherit;
+}
+
+/* --- Tabla del detalle ---------------------------------------------------- */
+.gre-detalle thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--gre-fondo);
+  border-bottom: 2px solid var(--gre-borde);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--gre-texto-tenue);
+  white-space: nowrap;
+}
+
+.gre-detalle tbody tr:hover { background: var(--gre-borde-tenue); }
+
+/* Cifras alineadas: sin esto las columnas de importe bailan al escribir. */
+.gre-num,
+.gre-detalle td.gre-num,
+.gre-totales input {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  text-align: right;
+}
+
+.gre-detalle input.form-control { font-variant-numeric: tabular-nums; }
+
+/* Una línea bonificada no suma: se marca, no se esconde. */
+.gre-detalle tr.gre-bonificada td { color: var(--gre-texto-tenue); }
+.gre-detalle tr.gre-bonificada .gre-num { text-decoration: line-through; }
+
+/* --- Estado vacío ---------------------------------------------------------
+   Enseña la interfaz en vez de decir "no hay nada". */
+.gre-vacio {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--gre-texto-tenue);
+}
+
+.gre-vacio i { font-size: 1.75rem; opacity: .35; display: block; margin-bottom: .6rem; }
+.gre-vacio strong { display: block; color: var(--gre-texto); font-weight: 600; margin-bottom: .2rem; }
+.gre-vacio span { font-size: .85rem; }
+
+/* --- Totales --------------------------------------------------------------
+   Se quedan a la vista mientras se cargan articulos. Antes habia que bajar
+   hasta el final para saber en cuanto iba la guia. */
+.gre-totales {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: var(--gre-superficie);
+  border-top: 1px solid var(--gre-borde);
+  box-shadow: 0 -6px 16px -10px rgba(34, 40, 52, .3);
+  padding: .75rem 1rem;
+  margin: 0 -1rem -1rem;
+}
+
+.gre-totales .form-label {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--gre-texto-tenue);
+  margin-bottom: .15rem;
+}
+
+.gre-totales input { font-weight: 600; }
+
+.gre-total-final input {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gre-texto);
+  border-color: var(--gre-acento);
+  background: var(--gre-acento-suave) !important;
+}
+
+/* --- Contador de items ----------------------------------------------------- */
+.gre-contador {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .8rem;
+  color: var(--gre-texto-tenue);
+  background: var(--gre-borde-tenue);
+  border-radius: 1rem;
+  padding: .15rem .6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Pantallas chicas ------------------------------------------------------ */
+@media (max-width: 991px) {
+  .gre-totales { margin: 0 -.75rem -.75rem; padding: .6rem .75rem; }
+  .gre-detalle thead th { font-size: .68rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gre * { transition: none !important; animation: none !important; }
+}
