@@ -582,25 +582,39 @@ class GuiaSalidaController extends Controller
         $api_datos = Parametro::find(6)->valor;
 
         $valor = trim($request->get('term'));
-        $tipo = $request->get('tipo');//busqueda por razon social
-        // dd($request->all());
-        $maximo = 0;
-        if ($tipo == 3) {
-            $maximo = 2;
-        }
+        $tipo  = $request->get('tipo'); //busqueda por razon social
+        $maximo = ($tipo == 3) ? 2 : 0;
+
+        // $listItems arranca vacio A PROPOSITO.
+        //
+        // Antes solo se definia dentro del if. Buscando por razon social hacen
+        // falta 3 letras, asi que con una o dos el if no entraba, la variable
+        // no existia y el foreach de abajo reventaba: el buscador respondia
+        // 500 y el usuario veia "The results could not be loaded" mientras
+        // escribia las primeras letras de CUALQUIER proveedor.
+        $listItems = [];
 
         if (strlen($valor) > $maximo) {
-            $listItems = Http::post("{$api_datos}/ObtenerProveedores",
-                ['valor' => $valor, 'tipo' => $tipo]
-            )->object()->proveedores;
+            try {
+                $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
+                    ['valor' => $valor, 'tipo' => $tipo]
+                )->object();
 
+                // La ApiGRE puede responder algo sin 'proveedores' (un error,
+                // un HTML). Encadenar ->proveedores a ciegas era otro 500.
+                if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
+                    $listItems = $respuesta->proveedores;
+                }
+            } catch (\Throwable $e) {
+                Log::error(__METHOD__ . ": " . $e->getMessage());
+                return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
+            }
         }
 
-        // dd($listItems);
         $items = array();
         foreach ($listItems as $item) {
 
-            $items[] = (object) array('id' => $item->codProveedor, 'text' => "[{$item->ruc}] {$item->nombreproveedor}", 'proveedor_nombre' => $item->nombreproveedor, 'proveedor_ruc' => $item->ruc, 'proveedor_direccion' => $item->direccion ?? '');
+            $items[] = (object) array('id' => $item->codProveedor, 'text' => "[{$item->ruc}] {$item->nombreproveedor}", 'proveedor_nombre' => $item->nombreproveedor, 'proveedor_ruc' => $item->ruc);
         }
 
         return response()->json(['items' => $items]);
@@ -844,6 +858,23 @@ class GuiaSalidaController extends Controller
 
         $url_redirect = route('guiasalida.index');
 
+        // Una guia GENERADA tiene que tener lineas. Ver el comentario largo en
+        // GuiaIngresoController::store(): la cabecera se creaba igual, con su
+        // total y quemando el correlativo, y el DataMart la rechazaba despues
+        // con "Documento incompleto". El borrador si puede ir vacio.
+        $lineas = json_decode($request->post('detalle'));
+        if (! is_array($lineas)) { $lineas = []; }
+
+        if ($guardar_avance == false && count($lineas) === 0) {
+            return response()->json([
+                'procede'  => false,
+                'msj'      => 'La guia no tiene articulos. Agregue al menos uno antes de generarla.',
+                'msj_tipo' => 'error',
+                'log'      => '',
+                'id'       => '',
+            ]);
+        }
+
         // asignamos existencia de serie en BD
         if ($guardar_avance == false) {
             $msj = "Guia registrada";
@@ -958,12 +989,14 @@ class GuiaSalidaController extends Controller
         }
 
         //registro en store
+        //
+        // Cabecera, correlativo de serie y detalle son UNA operacion: si una
+        // linea falla a la mitad, no puede quedar una cabecera escrita.
+        $store = null;
         if ($procede == true) {
+            DB::beginTransaction();
 
-            // =================================================================
-            // AÑADE ESTA LÍNEA PARA VER LOS DATOS DE LA CABECERA
             Log::info('Datos a guardar en [guia_salidas] (local):', $datos);
-            // =================================================================
 
             try {
                 $store = GuiaSalida::create($datos);
@@ -1001,66 +1034,66 @@ class GuiaSalidaController extends Controller
 
         //registrar detalle
         if ($procede == true) {
-            $detalle = json_decode($request->post('detalle'));
+            $detalle = $lineas;
             $id = $store->id;
 
-            // =================================================================
-            // AÑADE ESTA LÍNEA PARA VER LOS DATOS DEL DETALLE
             Log::info('Datos a guardar en [guia_salida_detalles] (local):', $detalle);
-            // =================================================================
 
             foreach ($detalle as $item) {
 
                 if ($procede == true) {
-                    $guiaDetalle = new GuiaSalidaDetalle();
-                    $guiaDetalle->guia_salida_id = $store->id;
-                    $guiaDetalle->codarticulo = $item->codarticulo;
-                    $guiaDetalle->precio = $item->precio;
-                    $guiaDetalle->cantidad = floatval($item->cantidad);
-                    $guiaDetalle->importe = $item->importe;
-                    $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
-                    $costo_total = $item->costo_articulo * $item->cantidad;
-                    $guiaDetalle->costo_total = number_format($costo_total, 2);
-                    $guiaDetalle->porcentaje_descuento = $item->porcentaje_descuento;
-                    $guiaDetalle->monto_descuento = $item->monto_descuento;
-                    $guiaDetalle->peso_unitario = $item->peso;
-                    $guiaDetalle->peso_total = floatval($item->peso) * floatval($item->cantidad);
-
-
-                    $nombreArticulo = $item->descripcion;
-                    // $nombreArticuloSinComillas = str_replace('"', '', $nombreArticulo);
-                    $nombreArticuloSinComillas = $this->limpiarCaracteres($nombreArticulo);
-
-                    $nombreArticuloLimpio = json_decode('"' . $nombreArticuloSinComillas . '"');
-
-                    // $guiaDetalle->descripcion = $item->descripcion;
-                    $guiaDetalle->descripcion = $nombreArticuloLimpio;
-                    $guiaDetalle->precio_publico = $item->precio_publico;
-                    $guiaDetalle->precio_sin_igv = $item->precio_sin_igv;
-                    $guiaDetalle->codigo_barra = $item->codigo_barra;
-
-                    $guiaDetalle->cod_unidad = $item->cod_unidad;
-                    $guiaDetalle->desc_unidad_medida = $item->desc_unidad_medida;
-                    $guiaDetalle->sigla_umfe = $item->sigla_umfe;
-
-                    $costo_total = ($item->costo_articulo ?? 0) * $item->cantidad;
-                    $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
-                    $guiaDetalle->costo_total = $costo_total;
-                    // Solo si la empresa usa consignados: la columna puede no
-                    // existir en clientes que no la tienen.
-                    if (\App\Support\ConfiguracionEmpresa::usaConsignados()) {
-                        $guiaDetalle->es_consignado = $item->es_consignado ?? 0;
-                    }
-
+                    // El try envuelve la linea ENTERA, no solo el save(): un
+                    // campo que falta revienta al ARMAR el modelo, y eso es un
+                    // Error de PHP, no una Exception. Antes salia un 500 y la
+                    // cabecera quedaba escrita sin detalle.
                     try {
+                        $guiaDetalle = new GuiaSalidaDetalle();
+                        $guiaDetalle->guia_salida_id = $store->id;
+                        $guiaDetalle->codarticulo = $item->codarticulo;
+                        $guiaDetalle->precio = $item->precio;
+                        $guiaDetalle->cantidad = floatval($item->cantidad);
+                        $guiaDetalle->importe = $item->importe;
+                        $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
+                        $costo_total = $item->costo_articulo * $item->cantidad;
+                        $guiaDetalle->costo_total = number_format($costo_total, 2);
+                        $guiaDetalle->porcentaje_descuento = $item->porcentaje_descuento;
+                        $guiaDetalle->monto_descuento = $item->monto_descuento;
+                        $guiaDetalle->peso_unitario = $item->peso;
+                        $guiaDetalle->peso_total = floatval($item->peso) * floatval($item->cantidad);
+
+
+                        $nombreArticulo = $item->descripcion;
+                        // $nombreArticuloSinComillas = str_replace('"', '', $nombreArticulo);
+                        $nombreArticuloSinComillas = $this->limpiarCaracteres($nombreArticulo);
+
+                        $nombreArticuloLimpio = json_decode('"' . $nombreArticuloSinComillas . '"');
+
+                        // $guiaDetalle->descripcion = $item->descripcion;
+                        $guiaDetalle->descripcion = $nombreArticuloLimpio;
+                        $guiaDetalle->precio_publico = $item->precio_publico;
+                        $guiaDetalle->precio_sin_igv = $item->precio_sin_igv;
+                        $guiaDetalle->codigo_barra = $item->codigo_barra;
+
+                        $guiaDetalle->cod_unidad = $item->cod_unidad;
+                        $guiaDetalle->desc_unidad_medida = $item->desc_unidad_medida;
+                        $guiaDetalle->sigla_umfe = $item->sigla_umfe;
+
+                        $costo_total = ($item->costo_articulo ?? 0) * $item->cantidad;
+                        $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
+                        $guiaDetalle->costo_total = $costo_total;
+                        // Solo si la empresa usa consignados: la columna puede no
+                        // existir en clientes que no la tienen.
+                        if (\App\Support\ConfiguracionEmpresa::usaConsignados()) {
+                            $guiaDetalle->es_consignado = $item->es_consignado ?? 0;
+                        }
+
                         $guiaDetalle->save();
-                    } catch (Exception $e) {
-                        //throw $th;
-                        // dd($e);
+                    } catch (\Throwable $e) {
                         $procede = false;
-                        $msj = "No se pudo registrar el detalle";
+                        $msj = "No se pudo registrar el detalle de la guia.";
                         $msj_tipo = "error";
                         $log = "{$e}";
+                        Log::error(__METHOD__ . ": " . $e->getMessage());
                     }
                 }
 
@@ -1080,7 +1113,22 @@ class GuiaSalidaController extends Controller
             $msj = "{$msj} <br> <button class='btn btn-success btn-sm' data-guardar_avance= '{$data_guardar_avance}' id='btnReintentar'><i class='fa-regular fa-paper-plane'></i> Reintentar</button>";
         }
 
-        $this->registrarAuditoria($store->id, 1, 'guia_salidas', json_encode($datos), $obsevracion_auditoria);
+        // Cierre de la transaccion abierta en el registro de la cabecera.
+        if ($store !== null) {
+            if ($procede == true) {
+                DB::commit();
+            } else {
+                DB::rollBack();
+                $id = "";
+            }
+        }
+
+        // Fuera de la transaccion y solo si hay guia: antes esta linea leia
+        // $store->id sin comprobar, y una cabecera fallida daba error 500 en
+        // vez del mensaje real.
+        if ($store !== null && $procede == true) {
+            $this->registrarAuditoria($store->id, 1, 'guia_salidas', json_encode($datos), $obsevracion_auditoria);
+        }
 
         return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'id' => $id]);
 

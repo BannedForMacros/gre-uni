@@ -291,20 +291,37 @@ public function agregarItem(AgregarItemRequest $request)
     public function listarProveedores(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+
         $valor = trim($request->get('term'));
-        $tipo = $request->get('tipo');//busqueda por razon social
-        // dd($request->all());
-        $maximo = 0;
-        if ($tipo == 3) {
-            $maximo = 2;
-        }
+        $tipo  = $request->get('tipo'); //busqueda por razon social
+        $maximo = ($tipo == 3) ? 2 : 0;
+
+        // $listItems arranca vacio A PROPOSITO.
+        //
+        // Antes solo se definia dentro del if. Buscando por razon social hacen
+        // falta 3 letras, asi que con una o dos el if no entraba, la variable
+        // no existia y el foreach de abajo reventaba: el buscador respondia
+        // 500 y el usuario veia "The results could not be loaded" mientras
+        // escribia las primeras letras de CUALQUIER proveedor.
+        $listItems = [];
+
         if (strlen($valor) > $maximo) {
-            $listItems = Http::post("{$api_datos}/ObtenerProveedores", 
-                ['valor' => $valor, 'tipo' => $tipo]
-            )->object()->proveedores;
+            try {
+                $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
+                    ['valor' => $valor, 'tipo' => $tipo]
+                )->object();
+
+                // La ApiGRE puede responder algo sin 'proveedores' (un error,
+                // un HTML). Encadenar ->proveedores a ciegas era otro 500.
+                if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
+                    $listItems = $respuesta->proveedores;
+                }
+            } catch (\Throwable $e) {
+                Log::error(__METHOD__ . ": " . $e->getMessage());
+                return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
+            }
         }
 
-        // dd($listItems);
         $items = array();
         foreach ($listItems as $item) {
 
@@ -679,6 +696,27 @@ public function buscarArticuloBarra(Request $request)
         
         $url_redirect = route('guiasalida.index');
 
+        // Una guia GENERADA tiene que tener lineas.
+        //
+        // Sin esto la cabecera se creaba igual, con su total y consumiendo el
+        // correlativo de la serie, y el detalle quedaba vacio. La guia se veia
+        // normal en el listado y el DataMart la rechazaba despues con
+        // "Documento incompleto", sin que nadie supiera de donde salio.
+        //
+        // El borrador (guardar_avance) si puede ir sin lineas: para eso es.
+        $lineas = json_decode($request->post('detalle'));
+        if (! is_array($lineas)) { $lineas = []; }
+
+        if ($guardar_avance == false && count($lineas) === 0) {
+            return response()->json([
+                'procede'  => false,
+                'msj'      => 'La guia no tiene articulos. Agregue al menos uno antes de generarla.',
+                'msj_tipo' => 'error',
+                'log'      => '',
+                'id'       => '',
+            ]);
+        }
+
 
         // asignamos existencia de serie en BD
         if ($guardar_avance == false) {
@@ -737,11 +775,16 @@ public function buscarArticuloBarra(Request $request)
         }
 
         //registro en store
+        //
+        // Cabecera, correlativo de serie y detalle son UNA operacion. Antes se
+        // guardaban por separado y sin transaccion: si una linea fallaba a la
+        // mitad, la cabecera y el correlativo ya estaban escritos y quedaba una
+        // guia incompleta imposible de distinguir de una buena.
+        $store = null;
         if ($procede == true) {
-            // --- AGREGA ESTO AQUÍ ---
+            DB::beginTransaction();
+
             Log::info('STORE LOCAL - Intentando crear Cabecera GuiaIngreso:', $datos);
-            // ------------------------
-            // dd($datos);
             try {
                 $store = GuiaIngreso::create($datos);
             } catch (Exception $e) {
@@ -778,68 +821,98 @@ public function buscarArticuloBarra(Request $request)
 
         //registrar detalle
         if ($procede == true) {
-            $detalle = json_decode($request->post('detalle'));
+            $detalle = $lineas;
             $id = $store->id;
             foreach ($detalle as $item) {
                 
                 if ($procede == true) {
-                    $guiaDetalle = new GuiaIngresoDetalle();
-                    $guiaDetalle->guia_ingreso_id = $store->id;
-                    $guiaDetalle->codarticulo = $item->codarticulo;
-                    $guiaDetalle->precio = $item->precio;
-                    $guiaDetalle->cantidad = $item->cantidad;
-                    $guiaDetalle->importe = $item->importe;
-                    $guiaDetalle->porcentaje_descuento = $item->porcentaje_descuento;
-                    $guiaDetalle->monto_descuento = $item->monto_descuento;
-
-                    $nombreArticulo = $item->descripcion;
-
-                    // $nombreArticuloSinComillas = str_replace('"', '', $nombreArticulo);
-
-                    $nombreArticuloSinComillas = $this->limpiarCaracteres($nombreArticulo);
-
-                    $nombreArticuloLimpio = json_decode('"' . $nombreArticuloSinComillas . '"');
-
-                    // $guiaDetalle->descripcion = $item->descripcion;
-                    $guiaDetalle->descripcion = $nombreArticuloLimpio;
-                    $guiaDetalle->precio_publico = $item->precio_publico;
-                    $guiaDetalle->precio_sin_igv = $item->precio_sin_igv;
-                    $guiaDetalle->codigo_barra = $item->codigo_barra;
-
-                    $guiaDetalle->cod_unidad = $item->cod_unidad;
-                    $guiaDetalle->desc_unidad_medida = $item->desc_unidad_medida;
-                    $guiaDetalle->sigla_umfe = $item->sigla_umfe;
-
-                    $costo_total = ($item->costo_articulo ?? 0) * $item->cantidad;
-                    $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
-                    $guiaDetalle->costo_total = $costo_total;
-
-                    // <--- NUEVO: Guardar el flag consignado en el detalle
-                    // Solo si el cliente usa consignados (la columna es_consignado puede
-                    // no existir en clientes que no la usan). Apagado por defecto.
-                    if (\App\Support\ConfiguracionEmpresa::usaConsignados()) {
-                        $guiaDetalle->es_consignado = $item->es_consignado ?? 0;
-                    }
-
-                    // --- AGREGA ESTO JUSTO ANTES DEL SAVE() ---
-                    Log::info("STORE LOCAL - Guardando item detalle [{$item->codarticulo}]:", $guiaDetalle->toArray());
-                    // ------------------------------------------
+                    // El try envuelve la linea ENTERA, no solo el save().
+                    //
+                    // Un campo que falta en la linea -paso con precio_publico-
+                    // revienta al ARMAR el modelo, antes de guardarlo, y eso
+                    // es un Error de PHP, no una Exception: se escapaba de
+                    // aqui y salia un 500. Ahora se convierte en un mensaje y
+                    // la transaccion deshace la cabecera, para que no vuelva a
+                    // quedar una guia sin detalle.
                     try {
-                        $guiaDetalle->save();
-                    } catch (Exception $e) {
-                        //throw $th;
-                        // dd($e);
+                        $guiaDetalle = new GuiaIngresoDetalle();
+                        $guiaDetalle->guia_ingreso_id = $store->id;
+                        $guiaDetalle->codarticulo = $item->codarticulo;
+                        $guiaDetalle->precio = $item->precio;
+                        $guiaDetalle->cantidad = $item->cantidad;
+                        $guiaDetalle->importe = $item->importe;
+                        $guiaDetalle->porcentaje_descuento = $item->porcentaje_descuento;
+                        $guiaDetalle->monto_descuento = $item->monto_descuento;
+
+                        $nombreArticulo = $item->descripcion;
+
+                        // $nombreArticuloSinComillas = str_replace('"', '', $nombreArticulo);
+
+                        $nombreArticuloSinComillas = $this->limpiarCaracteres($nombreArticulo);
+
+                        $nombreArticuloLimpio = json_decode('"' . $nombreArticuloSinComillas . '"');
+
+                        // $guiaDetalle->descripcion = $item->descripcion;
+                        $guiaDetalle->descripcion = $nombreArticuloLimpio;
+                        $guiaDetalle->precio_publico = $item->precio_publico;
+                        $guiaDetalle->precio_sin_igv = $item->precio_sin_igv;
+                        $guiaDetalle->codigo_barra = $item->codigo_barra;
+
+                        $guiaDetalle->cod_unidad = $item->cod_unidad;
+                        $guiaDetalle->desc_unidad_medida = $item->desc_unidad_medida;
+                        $guiaDetalle->sigla_umfe = $item->sigla_umfe;
+
+                        $costo_total = ($item->costo_articulo ?? 0) * $item->cantidad;
+                        $guiaDetalle->costo_articulo = $item->costo_articulo ?? 0;
+                        $guiaDetalle->costo_total = $costo_total;
+
+                        // <--- NUEVO: Guardar el flag consignado en el detalle
+                        // Solo si el cliente usa consignados (la columna es_consignado puede
+                        // no existir en clientes que no la usan). Apagado por defecto.
+                        if (\App\Support\ConfiguracionEmpresa::usaConsignados()) {
+                            $guiaDetalle->es_consignado = $item->es_consignado ?? 0;
+                        }
+
+                        // --- AGREGA ESTO JUSTO ANTES DEL SAVE() ---
+                        Log::info("STORE LOCAL - Guardando item detalle [{$item->codarticulo}]:", $guiaDetalle->toArray());
+                        // ------------------------------------------
+                        // Throwable, no Exception: un dato que falta en la linea
+                        // -paso una vez con precio_publico- lanza un Error, que no
+                        // es una Exception y se escapaba de aqui. El resultado era
+                        // un 500 con la cabecera ya escrita y sin detalle: asi
+                        // nacieron las guias que el DataMart rechaza por
+                        // "Documento incompleto". Ahora se convierte en un mensaje
+                        // y la transaccion deshace la cabecera.
+                            $guiaDetalle->save();
+                    } catch (\Throwable $e) {
                         $procede = false;
-                        $msj = "No se pudo registrar el detalle";
+                        $msj = "No se pudo registrar el detalle de la guia.";
                         $msj_tipo = "error";
                         $log = "{$e}";
+                        Log::error(__METHOD__ . ": " . $e->getMessage());
                     }
                 }
 
             }
         }
 
-        $this->registrarAuditoria($store->id, 1, 'guia_ingresos', json_encode($datos), strip_tags($msj));
+        // Cierre de la transaccion abierta en el registro de la cabecera.
+        if ($store !== null) {
+            if ($procede == true) {
+                DB::commit();
+            } else {
+                DB::rollBack();
+                $id = "";
+            }
+        }
+
+        // La auditoria se escribe FUERA de la transaccion y solo si hay guia.
+        // Antes esta linea leia $store->id sin comprobar nada: si la cabecera
+        // fallaba, $store no existia y el error real quedaba tapado por un
+        // error 500 de PHP.
+        if ($store !== null && $procede == true) {
+            $this->registrarAuditoria($store->id, 1, 'guia_ingresos', json_encode($datos), strip_tags($msj));
+        }
 
         return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'id' => $id]);
     }
