@@ -8,7 +8,9 @@
   <!-- CSRF Token -->
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
-  <title>{{ config('app.name', 'Laravel') }}</title>
+  {{-- El titulo de la pestana tambien decia "Laravel". Lleva la empresa
+       porque un usuario suele tener abiertas varias instalaciones a la vez. --}}
+  <title>{{ config('app.name', 'Guías Electrónicas') }}@if($greTituloEmpresa = optional(\App\Models\Parametro::find(3))->valor) · {{ $greTituloEmpresa }}@endif</title>
 
   <!-- Scripts -->
   <script src="{{ asset('js/app.js') }}" defer></script>
@@ -50,72 +52,106 @@
 
 <body>
   <div id="app">
+    {{-- Cabecera de la aplicacion.
+
+         Decia "Laravel", que es el nombre del framework: lo que sale por
+         defecto de APP_NAME y que nadie llego a cambiar. En el servidor de un
+         cliente eso es lo primero que ve el usuario cada manana.
+
+         Ahora dice que ES -Guias Electronicas- y DE QUIEN es, leyendo la razon
+         social que el propio cliente configura en Configuracion de Empresa. Si
+         hay logo cargado se usa; si no, una marca con la inicial. --}}
+    @php
+      $greEmpresa = optional(\App\Models\Parametro::find(3))->valor;
+      $greLogo    = \App\Support\ConfiguracionEmpresa::get('logo_empresa');
+    @endphp
+
     <nav class="navbar navbar-expand-md navbar-dark gre-nav">
       <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url('/') }}">
-          {{ config('app.name', 'Laravel') }}
+
+        <a class="navbar-brand gre-marca" href="{{ route('guiaingreso.index') }}">
+          @if ($greLogo)
+            <img src="{{ asset('storage/' . $greLogo) }}" alt="{{ $greEmpresa }}" class="gre-marca-logo">
+          @else
+            <span class="gre-marca-inicial">{{ mb_strtoupper(mb_substr($greEmpresa ?: 'G', 0, 1)) }}</span>
+          @endif
+
+          <span class="gre-marca-texto">
+            <strong>Guías Electrónicas</strong>
+            @if ($greEmpresa)
+              <small>{{ $greEmpresa }}</small>
+            @endif
+          </span>
         </a>
+
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
           aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
           <span class="navbar-toggler-icon"></span>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <!-- Left Side Of Navbar -->
           <ul class="navbar-nav me-auto">
+            {{-- Se marca donde esta el usuario. Antes las dos entradas se veian
+                 igual estuvieras donde estuvieras. --}}
             <li class="nav-item dropdown">
-              <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
-                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                Comprobantes
+              <a id="navbarDropdown" href="#" role="button" data-bs-toggle="dropdown"
+                 aria-haspopup="true" aria-expanded="false"
+                 class="nav-link dropdown-toggle {{ request()->routeIs('guiaingreso.*', 'guiasalida.*') ? 'activo' : '' }}">
+                <i class="fa fa-file-lines"></i> Comprobantes
               </a>
 
               <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                <a class="dropdown-item" href="{{ route('guiaingreso.index') }}">Guia de Ingreso</a>
-                <a class="dropdown-item" href="{{ route('guiasalida.index') }}">Guia de Salida</a>
+                <a class="dropdown-item {{ request()->routeIs('guiaingreso.*') ? 'activo' : '' }}"
+                   href="{{ route('guiaingreso.index') }}">Guía de Ingreso</a>
+                <a class="dropdown-item {{ request()->routeIs('guiasalida.*') ? 'activo' : '' }}"
+                   href="{{ route('guiasalida.index') }}">Guía de Salida</a>
               </div>
             </li>
-            {{-- @dd(Auth::user()) --}}
+
             @if ((Auth::user()->perfil_id ?? null) == 1)
-            <li class="nav-item dropdown">
-              <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
-                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                Configuraciones
-              </a>
-              <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                <a class="dropdown-item" href="{{ route('empleados.index') }}">Empleados</a>
-                <a class="dropdown-item" href="{{ route('configuracion.empresa') }}">Configuración de Empresa</a>
-              </div>
-                  
-            </li>
-              @endif
+              <li class="nav-item dropdown">
+                <a id="navbarDropdownConfig" href="#" role="button" data-bs-toggle="dropdown"
+                   aria-haspopup="true" aria-expanded="false"
+                   class="nav-link dropdown-toggle {{ request()->routeIs('empleados.*', 'configuracion.*') ? 'activo' : '' }}">
+                  <i class="fa fa-gear"></i> Configuraciones
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                  <a class="dropdown-item {{ request()->routeIs('empleados.*') ? 'activo' : '' }}"
+                     href="{{ route('empleados.index') }}">Empleados</a>
+                  <a class="dropdown-item {{ request()->routeIs('configuracion.*') ? 'activo' : '' }}"
+                     href="{{ route('configuracion.empresa') }}">Configuración de Empresa</a>
+                </div>
+              </li>
+            @endif
           </ul>
 
-          <!-- Right Side Of Navbar -->
           <ul class="navbar-nav ms-auto">
-            <!-- Authentication Links -->
             @guest
               @if (Route::has('login'))
                 <li class="nav-item">
                   <a class="nav-link" href="{{ route('login') }}">{{ __('Login') }}</a>
                 </li>
               @endif
-
-              @if (Route::has('register'))
-                {{-- <li class="nav-item">
-                  <a class="nav-link" href="{{ route('register') }}">{{ __('Register') }}</a>
-                </li> --}}
-              @endif
             @else
               <li class="nav-item dropdown">
-                <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button"
-                  data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                  {{ Auth::user()->name }}
+                <a id="navbarDropdownUsuario" class="nav-link gre-usuario" href="#" role="button"
+                   data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {{-- Iniciales en vez de un icono generico: identifican de un
+                       vistazo con que cuenta se esta trabajando. --}}
+                  <span class="gre-avatar">{{ mb_strtoupper(mb_substr(Auth::user()->name, 0, 1)) }}</span>
+                  <span class="gre-usuario-nombre">{{ Auth::user()->name }}</span>
+                  <i class="fa fa-chevron-down gre-usuario-flecha"></i>
                 </a>
 
-                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUsuario">
+                  <span class="dropdown-item-text gre-usuario-ficha">
+                    <strong>{{ Auth::user()->name }}</strong>
+                    <small>{{ Auth::user()->email }}</small>
+                  </span>
+                  <hr class="dropdown-divider">
                   <a class="dropdown-item" href="{{ route('logout') }}"
-                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    {{ __('Logout') }}
+                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    <i class="fa fa-arrow-right-from-bracket"></i> {{ __('Logout') }}
                   </a>
 
                   <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
@@ -125,10 +161,6 @@
               </li>
             @endguest
           </ul>
-
-
-
-
         </div>
       </div>
     </nav>
