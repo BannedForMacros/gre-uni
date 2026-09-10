@@ -198,10 +198,11 @@
    Es la accion que se repite decenas de veces por guia. Antes parecia un
    campo mas entre dieciseis. */
 .gre-buscador {
-  background: var(--gre-acento-suave);
-  border: 1px solid rgba(56, 116, 255, .25);
-  border-radius: .5rem;
+  background: var(--gre-fondo);
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: var(--gre-radio);
   padding: .875rem 1rem;
+  margin-bottom: 1rem;
 }
 
 .gre-buscador .form-label {
@@ -646,9 +647,9 @@
 
 .gre-titulo h1 {
   margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -.01em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
   color: var(--gre-texto);
 }
 
@@ -787,9 +788,9 @@
 
 .gre-cabecera h1 {
   margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -.01em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
   color: var(--gre-texto);
 }
 
@@ -1545,3 +1546,91 @@ body { background: var(--gre-fondo); }
   font-size: 1.0625rem;
   font-weight: 700;
 }
+
+/* =============================================================================
+   UNIFORMIDAD
+   -----------------------------------------------------------------------------
+   Dentro de una misma tarjeta convivian tres superficies distintas: el buscador
+   con fondo de color, la tabla en gris y los totales en azul. Cada bloque
+   pedia atencion por su cuenta y el conjunto se leia roto.
+
+   Regla, y no se rompe: el CONTENIDO va sobre superficie clara, siempre la
+   misma. El marino se queda para el CHROME -la cabecera de la aplicacion y la
+   barra de accion-, que enmarcan la pantalla pero no son contenido.
+   ========================================================================== */
+
+/* Cabecera y barra, el mismo marino de marca. El navy profundo #121625 se leia
+   como negro, que es justo lo que habia que quitar. */
+.gre-nav,
+.gre-barra {
+  background: var(--marca-navy);
+}
+
+.gre-nav { border-bottom: 1px solid rgba(255, 255, 255, .1); }
+
+/* --- Los totales vuelven a ser una tarjeta clara --------------------------- */
+.gre-totales {
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-campo);
+  border-radius: var(--gre-radio);
+  padding: .875rem;
+  box-shadow: none;
+}
+
+.gre-totales .form-label { color: var(--gre-texto-tenue); }
+
+.gre .gre-totales .form-control[readonly] {
+  background: var(--gre-fondo);
+  border-color: var(--gre-borde-tenue);
+  color: var(--gre-texto);
+  font-weight: 600;
+}
+
+/* El total sigue siendo la cifra clave, pero se destaca con peso y tamano, no
+   con un bloque de color: el menta sobre claro no da contraste para texto, y
+   pintarle el fondo era lo que rompia la tarjeta. */
+.gre-total-final .form-label { color: var(--marca-navy); font-weight: 700; }
+
+.gre .gre-total-final .form-control[readonly] {
+  background: var(--gre-superficie);
+  border-color: var(--marca-menta);
+  border-width: 1.5px;
+  color: var(--marca-navy);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* --- La barra de accion sigue siendo chrome -------------------------------- */
+.gre-barra-total strong {
+  color: var(--marca-menta);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+/* --- Un solo tratamiento para las tarjetas --------------------------------- */
+.gre-seccion,
+.gre-filtros,
+.gre-tabla {
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-campo);
+  border-radius: .75rem;
+  box-shadow: 0 1px 2px rgba(18, 22, 37, .04);
+}
+
+.gre-seccion-cab {
+  border-bottom: 1px solid var(--gre-borde-tenue);
+  padding: .75rem 1rem;
+}
+
+.gre-seccion-cuerpo { padding: 1rem; }
+
+/* El numero del paso, en marino sobre su propio tinte: no necesita ser un
+   circulo solido para ordenar. */
+.gre-paso {
+  background: rgba(38, 54, 109, .08);
+  color: var(--marca-navy);
+  font-weight: 700;
+}
+
+.gre-seccion-cab h2 { font-size: .875rem; }
