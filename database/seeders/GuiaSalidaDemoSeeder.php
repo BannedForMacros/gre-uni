@@ -66,7 +66,21 @@ class GuiaSalidaDemoSeeder extends Seeder
     }
 
     /**
-     * Las ocho guias.
+     * Todas las guias a sembrar: las ocho escritas a mano mas las generadas.
+     *
+     * Son 30 y no 8 porque el listado pagina de 25 en 25 (porPagina en
+     * public/js/gre/guia-listado.js) y con ocho filas la paginacion nunca
+     * llegaba a dispararse: siempre salia una sola pagina, asi que el paso a
+     * pagina 2 y el orden global sobre TODO el conjunto (no sobre la pagina
+     * visible) no se habian visto funcionar ni una vez con datos reales.
+     */
+    private function guias(): array
+    {
+        return array_merge($this->guiasEscritasAMano(), $this->guiasGeneradas());
+    }
+
+    /**
+     * Las ocho primeras.
      *
      * Fechas distintas, estados distintos y razones sociales distintas porque
      * el listado ordena por columna y filtra por documento, razon social y
@@ -77,7 +91,7 @@ class GuiaSalidaDemoSeeder extends Seeder
      * facturador una vez por guia y reescribe guia_estado_id con lo que
      * responda: los datos sembrados se moverian solos en cada visita.
      */
-    private function guias(): array
+    private function guiasEscritasAMano(): array
     {
         return [
             [
@@ -145,6 +159,97 @@ class GuiaSalidaDemoSeeder extends Seeder
                 'lineas'  => [['barra_fresa', 90], ['barra_lemon', 90], ['gorro_835', 12], ['gorra_g01', 8]],
             ],
         ];
+    }
+
+    /**
+     * Las 22 que completan las 30, numeros 1009 a 1030.
+     *
+     * Se combinan tres listas cortas en vez de escribir 22 bloques enteros: lo
+     * unico que aporta cada guia extra es ser DISTINTA de las demas en las
+     * columnas por las que se ordena y se filtra. Los tamanos de las listas son
+     * primos entre si (11 clientes, 7 rutas, 9 juegos de lineas), asi que la
+     * combinacion no se repite en 22 vueltas y no salen dos guias gemelas.
+     *
+     * Nada de rand(): con un aleatorio, dos corridas dan importes distintos y
+     * deja de poderse comprobar a mano que el orden por importe es correcto.
+     *
+     * Las fechas se reparten entre el 2026-08-12 y el 2026-09-10 con saltos
+     * irregulares, porque el listado ordena por fecha y una progresion regular
+     * no distingue un orden bueno de uno que solo respeta el id.
+     */
+    private function guiasGeneradas(): array
+    {
+        $clientes = [
+            ['FERRETERIA EL CONSTRUCTOR SAC',    '20441122334', 'RUC', 'AV. TUPAC AMARU 1450, INDEPENDENCIA'],
+            ['AGROINDUSTRIAS LA JOYA SRL',       '20553344556', 'RUC', 'CARRETERA PANAMERICANA SUR KM 48, LA JOYA'],
+            ['FARMACIA SAN GABRIEL EIRL',        '20667799001', 'RUC', 'AV. BRASIL 2280, PUEBLO LIBRE'],
+            ['CALZADOS TRUJILLO SAC',            '20112255667', 'RUC', 'JR. AYACUCHO 640, TRUJILLO'],
+            ['JUAN CARLOS ROJAS PEREDA',         '10412233445', 'DNI', 'CALLE SAN MARTIN 118, MAGDALENA DEL MAR'],
+            ['IMPORTACIONES PACIFICO SA',        '20889900112', 'RUC', 'AV. ARGENTINA 3450, CALLAO'],
+            ['PANIFICADORA DON PEPE EIRL',       '20223344558', 'RUC', 'AV. UNIVERSITARIA 5600, LOS OLIVOS'],
+            ['MAQUINARIAS ANDINAS SAC',          '20334466889', 'RUC', 'AV. SEPARADORA INDUSTRIAL 890, ATE'],
+            ['MARIA ELENA CHAVEZ QUISPE',        '10556677889', 'DNI', 'JR. HUANCAVELICA 355, HUANCAYO'],
+            ['DEPORTES TOTAL PERU SAC',          '20445599771', 'RUC', 'AV. LARCO 1210, MIRAFLORES'],
+            ['ZAPATERIA LA BOTA DE ORO EIRL',    '20778822334', 'RUC', 'AV. EL SOL 640, CUSCO'],
+        ];
+
+        $rutas = [
+            [['15', '1501', '150131', 'AV. CANAVAL Y MOREYRA 480, SAN ISIDRO'],   ['07', '0701', '070101', 'AV. SAENZ PENA 320, CALLAO']],
+            [['15', '1501', '150103', 'AV. NICOLAS AYLLON 3900, ATE'],            ['12', '1201', '120101', 'CALLE REAL 780, HUANCAYO']],
+            [['13', '1301', '130101', 'JR. PIZARRO 458, TRUJILLO'],               ['14', '1401', '140101', 'AV. BALTA 1150, CHICLAYO']],
+            [['15', '1501', '150136', 'AV. LA MARINA 2355, SAN MIGUEL'],          ['20', '2001', '200101', 'AV. GRAU 990, PIURA']],
+            [['04', '0401', '040101', 'CALLE MERCADERES 210, AREQUIPA'],          ['08', '0801', '080101', 'AV. EL SOL 640, CUSCO']],
+            [['15', '1501', '150117', 'CALLE LOS ALAMOS 780, LOS OLIVOS'],        ['16', '1601', '160101', 'AV. ABELARDO QUINONES 2400, IQUITOS']],
+            [['15', '1501', '150114', 'AV. JAVIER PRADO ESTE 5220, LA MOLINA'],   ['02', '0201', '020101', 'JR. JOSE OLAYA 415, HUARAZ']],
+        ];
+
+        $juegosDeLineas = [
+            [['gorro_835', 15], ['gorra_g01', 10]],
+            [['barra_lemon', 72], ['barra_fresa', 72], ['gorro_1985', 5]],
+            [['gorro_6154', 8]],
+            [['gorro_836', 18], ['gorro_837', 14], ['barra_lemon', 24], ['gorra_g01', 6]],
+            [['barra_fresa', 40], ['gorro_1985', 11]],
+            [['gorra_g01', 22], ['gorro_835', 9], ['gorro_6154', 4]],
+            [['gorro_837', 33]],
+            [['barra_lemon', 100], ['gorro_836', 7]],
+            [['gorro_1985', 16], ['barra_fresa', 28], ['gorro_835', 5]],
+        ];
+
+        // Dias transcurridos desde el 2026-08-12, uno por guia.
+        $saltos = [0, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 16, 18, 19, 21, 22, 23, 24, 25, 26, 27, 29];
+
+        // Los cuatro estados dan la vuelta para que ninguno quede sin ejemplares
+        // y para que el filtro rapido por nombre de estado tenga con que recortar.
+        $estados = [1, 2, 3, 4, 2, 1, 3];
+
+        $guias = [];
+
+        foreach ($saltos as $i => $dias) {
+            list($razonSocial, $documento, $tipoDocumento, $direccion) = $clientes[$i % count($clientes)];
+            list($partida, $llegada) = $rutas[$i % count($rutas)];
+
+            $estado = $estados[$i % count($estados)];
+
+            $guias[] = [
+                'numero'      => 1009 + $i,
+                'fecha'       => date('Y-m-d', strtotime('2026-08-12 +' . $dias . ' days')),
+                'estado'      => $estado,
+                // Solo Aceptada y Rechazada llevan envio_sunat 1: una Generada
+                // con envio_sunat 1 hace que el listado le pregunte el estado al
+                // facturador y le reescriba el estado sembrado en cada visita, y
+                // una en Avance es un borrador que nunca se mando a SUNAT.
+                'sunat'       => in_array($estado, [2, 3], true) ? 1 : 0,
+                'cliente'     => $razonSocial,
+                'doc'         => $documento,
+                'tipo_doc'    => $tipoDocumento,
+                'dir_cliente' => $direccion,
+                'partida'     => $partida,
+                'llegada'     => $llegada,
+                'lineas'      => $juegosDeLineas[$i % count($juegosDeLineas)],
+            ];
+        }
+
+        return $guias;
     }
 
     public function run(): void
