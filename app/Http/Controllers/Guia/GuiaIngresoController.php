@@ -449,210 +449,11 @@ public function buscarArticuloBarra(Request $request)
     ]);
 }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store2(Request $request)
-    {
-        $api_datos = Parametro::find(6)->valor;
-
-        $datos = $request->post();
-        $id_continuar = $request->post('id_continuar');
-        // dd($request->post());
-        if ($id_continuar == '') {
-            unset($datos['id']);
-        }
-        // dd($datos);
-        $detalle = json_decode($request->post('detalle'));
-        $guardar_avance = ($datos['guardar_avance'] == 'true') ? true : false ;
-        unset($datos['detalle']);
-        // dd($datos);
-        $procede = true;
-        $msj = "Guia de Ingreso registrada";
-        $msj_tipo = "success";
-        $log = "";
-        $datos['fecha_emision'] = date('Y-m-d');
-        $datos['hora_emision'] = date('H:i');
-        $url_redirect = route('guiaingreso.index');
-        $datos['serie']= 1;
-        $guia_estado_id = 1;
-        if ($guardar_avance == true) {
-            $guia_estado_id = 4;
-        }
-        $datos['guia_estado_id'] = $guia_estado_id;
-        
-        // $getLast = GuiaSalida::orderBy('id', 'desc')->first();
-        $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros;
-        // dd($listSeries);
-        foreach ($listSeries as $item) {
-            if ($item->numserie == $datos['serie']) {
-                $numero = intval($item->ultimoValormarket) + 1;
-                $serie = $item->numserie;
-            }
-        }
-
-        // if ($getLast != null) {
-        //     $numero = intval($getLast->numero)+1;
-        // }
-        $datos['numero'] = $numero;
-        $datos['serie'] = $serie;
-        // dd([$numero, $serie]);
-        $anio_actual = date('Y');
-
-
-        // dd($body);
-
-        if ($id_continuar != null) {
-            // dd('desactivamos el activo anterior');
-            $guia_avance = GuiaIngreso::find($id_continuar);
-            $guia_avance->activo = 0;
-            try {
-                $guia_avance->save();
-            } catch (Exception $e) {
-                //throw $th;
-                $procede = false;
-                $msj = "No se pudo limpiar la guia guardada";
-                $msj_tipo = "error";
-                $log = "{$e}";
-            }
-        }
-
-        if ($procede == true) {
-            
-            if ($guardar_avance == false) {
-
-                foreach ($detalle as $item) {
-                    $body_detalle[] = array(
-                        "anioGuia" => $anio_actual,
-                        "cantidad" => $item->cantidad,
-                        "codArticulo" => $item->codarticulo,
-                        "estadoProceso" => "0",
-                        "importeDetalle" => $item->importe,
-                        "item" => 1,
-                        "numSerie" => $datos['serie'],
-                        "numeroGuia" => $datos['numero'],
-                        "precio" => $item->precio,
-                        "tipoGuia" => "N",
-                        "unidadMedida" => 1
-                    );
-                }
-                $body = [
-                    "anioGuiaRemision" => $anio_actual,
-                    "breveteChofer" => null,
-                    "codAlmacen" => $datos['codalmacen'],
-                    "codAlmacenDestino" => null,
-                    "codAlmacenOrigen" => null,
-                    "codCliente" => null,
-                    "codEstacion" => $datos['codestacion'],
-                    "codListaPrecio" => null,
-                    "codProveedor" => $datos['proveedor_id'],
-                    "codtrabajador" => $datos['vendedor_id'],
-                    "comentario" => $datos['comentario'],
-                    "descuento" => $datos['monto_descuento'],
-                    "detalle" => $body_detalle,
-                    "direccionllegada" =>null,
-                    "direccionpartida" => null,
-                    "dnichofer" => null,
-                    "estadoProceso" => "0",
-                    "fechaEmision" => $datos['fecha_emision'],
-                    "formapago" => $datos['forma_pago_id'],
-                    "igv" => $datos['monto_igv'],
-                    "modalidadTransporte" => "18",
-                    "nombreTransportista" => null,
-                    "nombrechofer" => null,
-                    "numSerie" => $datos['serie'],
-                    "seriefactura" => $datos['pedido_serie'],
-                    "numeroFactura" => 159,
-                    "numeroGuia" => $datos['numero'],
-                    "placavehiculo" => null,
-                    "rucTransportista" => null,
-                    "tipoGuia" => "N", //N->ingreso; A->Salida
-                    "tipoOperacion" => $datos['tipo_operacion_id'],
-                    "tipomonda" => 1,
-                    "totalVenta" => $datos['total_venta'],
-                    "ubigeollegada" => null,
-                    "ubigeopartida" => null,
-                    "valorVenta" => $datos['importe_sin_igv']
-                ];
-
-
-                try {
-                    $storeRemoto = Http::post("{$api_datos}/InsertGuiaDMK", $body)->object();
-                    // dd($storeRemoto);
-                    if ($storeRemoto->exito == false) {
-                        $procede = false;
-                        $msj = "No se pudo completar : {$storeRemoto->msgerror}";
-                    }
-                } catch (Exception $e) {
-                    //throw $th;
-                    Log::error(__METHOD__ . ": " . $e->getMessage());
-                    $procede = false;
-                    $msj = "No se pudo registrar remotamente";
-                    $msj_tipo = "error";
-                    $log = "{$e}";
-                }
-                
-            }
-        }
-
-        if ($guardar_avance == true) {
-            $datos['numero'] = null;
-            $datos['serie'] = null;
-        }
-
-        
-        if ($procede == true) {
-
-            try {
-                $guia = GuiaIngreso::create($datos);
-            } catch (Exception $e) {
-                //throw $th;
-                Log::error(__METHOD__ . ": " . $e->getMessage());
-                $procede = false;
-                $msj = "No se pudo registrar la Guia de Salida";
-                $msj_tipo = "error";
-                $log = "{$e}";
-            }
-            
-        }
-
-        // dd($guia);
-        if ($procede == true) {
-            foreach ($detalle as $item) {
-
-                if ($procede == true) {
-                    $guiaDetalle = new GuiaIngresoDetalle();
-                    $guiaDetalle->guia_ingreso_id = $guia->id;
-                    $guiaDetalle->codarticulo = $item->codarticulo;
-                    $guiaDetalle->precio = $item->precio;
-                    $guiaDetalle->cantidad = $item->cantidad;
-                    $guiaDetalle->importe = $item->importe;
-                    $guiaDetalle->porcentaje_descuento = $item->porcentaje_descuento;
-                    $guiaDetalle->monto_descuento = $item->monto_descuento;
-                    $guiaDetalle->descripcion = $item->descripcion;
-                    $guiaDetalle->precio_publico = $item->precio_publico;
-                    $guiaDetalle->precio_sin_igv = $item->precio_sin_igv;
-                    $guiaDetalle->codigo_barra = $item->codigo_barra;
-
-                    try {
-                        $guiaDetalle->save();
-                    } catch (Exception $e) {
-                        //throw $th;
-                        Log::error(__METHOD__ . ": " . $e->getMessage());
-                        $procede = false;
-                        $msj = "No se pudo registrar el detalle";
-                        $msj_tipo = "error";
-                        $log = "{$e}";
-                    }
-                }
-            }
-        }
-
-        return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'url_redirect' => $url_redirect]);
-    }
+    // Aqui vivia store2(), una copia vieja de store() que insertaba en la
+    // ApiGRE y en local sin transaccion y con la serie cableada a 1. No la
+    // llamaba nadie: no tenia ruta (Route::resource solo publica store), y no
+    // aparecia en ninguna vista ni en public/js. Se elimina para que nadie la
+    // tome por el camino bueno al buscar "store" en este archivo.
 
     public function modalStore(Request $request)
     {
@@ -668,7 +469,13 @@ public function buscarArticuloBarra(Request $request)
         $es_guia_interna = $request->post('es_guia_interna');
 
         $datos = $request->post();
-        $id_continuar = $request->post('id_continua');
+        // El formulario de INGRESO manda el id del avance en 'id_continuar';
+        // el de salida lo llama 'id_continua'. Aqui se leia el nombre de
+        // salida, asi que al generar la guia definitiva el avance de origen no
+        // se desactivaba nunca: quedaban las dos filas activas en el listado y
+        // el usuario podia seguir retomando un borrador ya emitido.
+        // Se aceptan los dos nombres para no romper nada que ya mande el otro.
+        $id_continuar = $request->post('id_continuar', $request->post('id_continua'));
         $datos['guardar_avance'] = ($datos['guardar_avance'] == 'true') ? true : false ;
         $guardar_avance = $datos['guardar_avance'];
 
@@ -784,7 +591,12 @@ public function buscarArticuloBarra(Request $request)
         }
 
         // actualizar serie nube
-        if ($procede == true) {
+        //
+        // Solo cuando la guia se GENERA. El borrador no pasa por asignarSerie()
+        // -no consume correlativo a proposito-, asi que $asignarSerie ni
+        // existe: guardar un avance de una guia interna moria con "Undefined
+        // variable $asignarSerie" y el usuario perdia el trabajo con un 500.
+        if ($procede == true && $guardar_avance == false) {
             if ($es_guia_interna == 1) {
                 $updateSerie = Serie::find($asignarSerie->serieAsignada->id);
                 // dd($datos);
