@@ -30,7 +30,12 @@ class ParametroSeeder extends Seeder
             3  => ['razon_social_entidad',             env('GRE_RAZON_SOCIAL', '')],
             4  => ['direccion_entiedad',               env('GRE_DIRECCION', '')],
             5  => ['telefonos',                        env('GRE_TELEFONOS', '-')],
-            6  => ['api_datos',                        env('GRE_API_URL', 'http://localhost:8181/GREDMK')],
+            // La ruta se arma aqui, no se escribe en el .env: los
+            // controladores llaman a {$api_datos}/InsertGuiaDMK y compania,
+            // que viven bajo /GREDMK. Cuando esto salia directo del .env, una
+            // instalacion limpia se quedaba apuntando a /api/v1 y no
+            // funcionaba nada.
+            6  => ['api_datos',                        config('gre.api.legacy')],
             7  => ['api_facturacion',                  env('GRE_FACTURACION_URL', '')],
             8  => ['api_facturacion_consultas',        env('GRE_FACTURACION_CONSULTAS_URL', '')],
             9  => ['api_facturacion_consultar_estado', env('GRE_FACTURACION_ESTADO_URL', '')],
