@@ -14,6 +14,9 @@
 --}}
 
 @php
+  // Una guia retomada no es "nueva": el distintivo dice en que estado esta.
+  $estadoGuia = isset($guia) ? optional(\App\Models\GuiaEstado::find($guia->guia_estado_id))->nombre : null;
+
   // El proveedor que ya viene elegido, con la forma que devuelve el buscador,
   // para que una guia retomada y una recien buscada se pinten igual.
   $proveedorElegido = isset($listProveedores[0]) ? [
@@ -30,7 +33,7 @@
 
     <div class="gre-titulo">
       <h1>Guía de Ingreso</h1>
-      <span class="gre-etiqueta">Generada</span>
+      <span class="gre-etiqueta">{{ $estadoGuia ?? 'Nueva' }}</span>
     </div>
 
     <form name="form_store" id="form_store" onkeydown="return event.key != 'Enter';">

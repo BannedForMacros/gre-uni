@@ -391,26 +391,7 @@ class GuiaSalidaController extends Controller
         $verVehiculo = 'display: none';
 
         $validar_stock = Parametro::find(10)->valor;
-        // dd($validar_stock);
-        $clienteTransferencia = (object) array();
-
-        $valor_cliente_transferencia = Parametro::find(2)->valor;
-
-        try {
-
-            $getClienteTransferencia = Http::post("{$api_datos}/obtenerCliente",
-            ['valor' => $valor_cliente_transferencia, 'tipo' => 2])
-            ->object()->cliente;
-            $clienteTransferencia = $getClienteTransferencia[0];
-        } catch (Exception $e) {
-            // Antes esto era un dd(): si el catalogo de clientes venia vacio,
-            // la pantalla entera moria mostrando texto crudo sobre fondo negro.
-            // Un catalogo ausente no debe impedir registrar una guia.
-            Log::warning('No se pudo obtener el cliente de transferencia: ' . $e->getMessage());
-            $clienteTransferencia = null;
-        }
-
-        // dd($clienteTransferencia);
+        $clienteTransferencia = $this->clienteDeTransferencia($api_datos);
 
 
         $lineasDetalle = [];
@@ -526,9 +507,57 @@ class GuiaSalidaController extends Controller
         // pidiendo solo los dos niveles que hacen falta. Antes eran seis
         // llamadas a la API aqui, para llenar <select> que ya no existen.
 
+        // Estas CINCO faltaban, y por eso retomar una guia de salida moria con
+        // "Undefined variable $detalle" y despues con $verChofer. La pantalla
+        // de continuar llevaba rota desde que se separo de create().
+        $detalle = GuiaSalidaDetalle::where('guia_salida_id', $guia->id)->get();
+        $validar_stock = Parametro::find(10)->valor;
+        $clienteTransferencia = $this->clienteDeTransferencia($api_datos);
+
+        // Chofer y vehiculo solo se piden en traslado PRIVADO, que es cuando la
+        // empresa se transporta a si misma. create() los deja ocultos porque
+        // todavia no hay transportista elegido; aqui la guia ya lo tiene
+        // guardado, asi que se resuelve con el mismo criterio que usa
+        // getModalidadTraslado() en vez de esconder datos ya cargados.
+        $esTrasladoPrivado = trim((string) Parametro::find(2)->valor) !== ''
+            && trim((string) Parametro::find(2)->valor) === trim((string) $guia->transportista_ruc);
+
+        $verChofer   = $esTrasladoPrivado ? '' : 'display: none';
+        $verVehiculo = $esTrasladoPrivado ? '' : 'display: none';
+
         $lineasDetalle = $this->lineasParaVista($detalle);
 
-        return view('guia.salida.create', compact('lineasDetalle', 'guia', 'detalle','listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas','listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
+        return view('guia.salida.create', compact('lineasDetalle', 'guia', 'validar_stock', 'clienteTransferencia', 'listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas','listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
+    }
+
+    /**
+     * El cliente con el que se factura una transferencia entre almacenes.
+     *
+     * Lo necesitan create() y continuar(), y estaba escrito solo en la
+     * primera: por eso retomar una guia se caia. Vive aqui para que las dos
+     * pantallas se comporten igual.
+     *
+     * Devuelve null si no se puede obtener. Un catalogo ausente no debe
+     * impedir registrar una guia: antes esto era un dd() y la pantalla entera
+     * moria mostrando texto crudo.
+     */
+    private function clienteDeTransferencia($api_datos)
+    {
+        try {
+            $respuesta = Http::post("{$api_datos}/obtenerCliente",
+                ['valor' => Parametro::find(2)->valor, 'tipo' => 2]
+            )->object();
+
+            // Encadenar ->cliente[0] a ciegas daba error cuando el catalogo
+            // venia vacio, que es lo normal si el RUC no esta configurado.
+            if (is_object($respuesta) && isset($respuesta->cliente) && ! empty($respuesta->cliente)) {
+                return $respuesta->cliente[0];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo obtener el cliente de transferencia: ' . $e->getMessage());
+        }
+
+        return null;
     }
 
     public function getVendedor(Request $request)

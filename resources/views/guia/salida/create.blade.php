@@ -15,6 +15,48 @@
   div_vehiculo y div_btn_guardar.
 --}}
 
+@php
+  /*
+   * Lo ya elegido, para que al RETOMAR una guia el buscador muestre el cliente,
+   * el proveedor y el transportista que tenia, y no una caja vacia.
+   *
+   * Antes esto lo resolvia select2 con la <option> ya marcada que venia del
+   * servidor. Al pasar al buscador propio habia que reconstruirlo, y sin esto
+   * la guia parecia haber perdido el destinatario aunque su direccion siguiera
+   * ahi rellenada.
+   *
+   * Se arma con lo que la propia guia tiene guardado, no con el catalogo: es lo
+   * que se registro, y no depende de que el DataMart siga devolviendo esa ficha.
+   */
+  $clienteElegido = ! empty($guia->cliente_razon_social ?? null) ? [
+      'id'                    => $guia->cliente_id ?? '',
+      'text'                  => '[' . ($guia->cliente_nro_documento ?? '') . '] ' . $guia->cliente_razon_social,
+      'razon_social'          => $guia->cliente_razon_social,
+      'nro_documento'         => $guia->cliente_nro_documento ?? '',
+      'documento_tipo_nombre' => $guia->cliente_documento_tipo_nombre ?? '',
+      'direccion'             => $guia->cliente_direccion ?? '',
+  ] : null;
+
+  $proveedorElegido = ! empty($guia->proveedor_nombre ?? null) ? [
+      'id'               => $guia->proveedor_id ?? '',
+      'text'             => '[' . ($guia->proveedor_ruc ?? '') . '] ' . $guia->proveedor_nombre,
+      'proveedor_nombre' => $guia->proveedor_nombre,
+      'proveedor_ruc'    => $guia->proveedor_ruc ?? '',
+  ] : null;
+
+  $transportistaElegido = ! empty($guia->transportista_nombre ?? null) ? [
+      'id'                      => $guia->transportista_id ?? '',
+      'text'                    => '[' . ($guia->transportista_ruc ?? '') . '] ' . $guia->transportista_nombre,
+      'nombre'                  => $guia->transportista_nombre,
+      'ruc'                     => $guia->transportista_ruc ?? '',
+      'transportista_direccion' => $guia->transportista_direccion ?? '',
+  ] : null;
+
+  // Una guia retomada no es "nueva": el distintivo tiene que decir en que
+  // estado esta, que es lo que decide que se puede hacer con ella.
+  $estadoGuia = isset($guia) ? optional(\App\Models\GuiaEstado::find($guia->guia_estado_id))->nombre : null;
+@endphp
+
 @section('content')
 {{-- El scope va en el contenedor exterior a proposito: puesto en un div
      interno, el navegador re-anidaba el marcado y los totales quedaban fuera
@@ -43,7 +85,7 @@
 
     <div class="gre-titulo">
       <h1>Guía de Salida</h1>
-      <span class="gre-etiqueta">Nueva</span>
+      <span class="gre-etiqueta">{{ $estadoGuia ?? 'Nueva' }}</span>
     </div>
 
     <form name="form_store" id="form_store" onkeydown="return event.key != 'Enter';">
@@ -206,6 +248,7 @@
                x-data="greCombo({
                    ruta: '{{ route('guiasalida.listarClientes') }}',
                    minimo: 3,
+                   elegido: {{ Js::from($clienteElegido) }},
                    parametros: {
                        tipo_busqueda_cliente: function () {
                            var s = document.getElementById('tipo_busqueda_cliente');
@@ -310,6 +353,7 @@
                x-data="greCombo({
                    ruta: '{{ route('guiasalida.listarProveedores') }}',
                    minimo: 1,
+                   elegido: {{ Js::from($proveedorElegido) }},
                    parametros: {
                        tipo: function () {
                            var s = document.getElementById('tipo_busqueda_proveedor');
@@ -508,6 +552,7 @@
                x-data="greCombo({
                    ruta: '{{ route('guiasalida.listarTransportistas') }}',
                    minimo: 1,
+                   elegido: {{ Js::from($transportistaElegido) }},
                    alElegir: function (t) {
                        document.getElementById('transportista_direccion').value = t ? (t.transportista_direccion || '') : '';
                        document.getElementById('transportista_ruc').value       = t ? (t.ruc || '') : '';
