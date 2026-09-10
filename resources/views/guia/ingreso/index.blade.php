@@ -115,35 +115,29 @@
                       <td x-text="fecha(g.fechaEmision)"></td>
                       <td class="gre-importe" x-text="money(g.totalVenta)"></td>
                       <td>
-                        <div class="btn-group btn-group-sm gre-fila-acciones">
-                          <a :href="g.urlPdf" target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fa fa-external-link"></i> Ver
+                        <div class="gre-fila-acciones">
+                          <a :href="g.urlPdf" target="_blank" class="gre-icono" title="Ver la guia en PDF">
+                            <i class="fa fa-file-lines"></i>
                           </a>
-                          <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
-                                  data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="visually-hidden">Más acciones</span>
+
+                          <a :href="g.urlPdfValorada" target="_blank" class="gre-icono" title="Ver la guia valorada">
+                            <i class="fa fa-file-invoice-dollar"></i>
+                          </a>
+
+                          <a :href="g.urlContinuar" class="gre-icono" title="Continuar esta guia"
+                             x-show="g.mostrarContinuar" x-cloak>
+                            <i class="fa fa-pen"></i>
+                          </a>
+
+                          <button type="button" class="gre-icono gre-icono-accion" title="Reenviar al DataMart"
+                                  x-show="g.mostrarGuardarDatamarket" x-cloak @click="reenviarDataMart(g)">
+                            <i class="fa fa-paper-plane"></i>
                           </button>
-                          <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                              <a class="dropdown-item text-success" :href="g.urlPdfValorada" target="_blank">
-                                <i class="fa fa-file"></i> Guía valorada
-                              </a>
-                            </li>
-                            <li x-show="g.mostrarContinuar">
-                              <a class="dropdown-item" :href="g.urlContinuar"><i class="fa fa-edit"></i> Continuar</a>
-                            </li>
-                            <li x-show="g.mostrarGuardarDatamarket">
-                              <button type="button" class="dropdown-item text-success" @click="reenviarDataMart(g)">
-                                <i class="fa fa-paper-plane"></i> Reenviar a DataMart
-                              </button>
-                            </li>
-                            <li x-show="g.mostrarEliminar"><hr class="dropdown-divider"></li>
-                            <li x-show="g.mostrarEliminar">
-                              <button type="button" class="dropdown-item text-danger" @click="eliminar(g)">
-                                <i class="fa fa-times"></i> Eliminar
-                              </button>
-                            </li>
-                          </ul>
+
+                          <button type="button" class="gre-icono gre-icono-peligro" title="Eliminar esta guia"
+                                  x-show="g.mostrarEliminar" x-cloak @click="eliminar(g)">
+                            <i class="fa fa-trash-can"></i>
+                          </button>
                         </div>
                       </td>
                     </tr>

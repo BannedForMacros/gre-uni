@@ -1033,8 +1033,6 @@
   background: var(--gre-superficie);
   border: 1px solid var(--gre-borde-tenue);
   border-radius: .625rem;
-  box-shadow: 0 1px 2px rgba(49, 55, 74, .04);
-  overflow: hidden;
 }
 
 .gre-tabla + .gre-paginacion {
@@ -1634,3 +1632,63 @@ body { background: var(--gre-fondo); }
 }
 
 .gre-seccion-cab h2 { font-size: .875rem; }
+
+/* --- Acciones de fila, con iconos ------------------------------------------
+   Antes eran un boton "Ver" mas un desplegable con todo lo demas escondido:
+   dos clics para cualquier accion y, encima, el menu se recortaba contra el
+   borde de la tarjeta.
+
+   Ahora cada accion es su propio icono y aparece SOLO cuando el estado de la
+   guia la permite: una guia ya enviada no muestra el reenvio, una que no es
+   borrador no muestra continuar. La fila dice lo que se puede hacer sin
+   abrir nada.
+   ------------------------------------------------------------------------- */
+.gre-fila-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .125rem;
+}
+
+.gre-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--gre-radio-chico);
+  background: transparent;
+  color: var(--marca-gris-borde);
+  font-size: .8125rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease;
+}
+
+.gre-icono:hover {
+  background: rgba(38, 54, 109, .07);
+  color: var(--marca-navy);
+}
+
+.gre-icono:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gre-anillo);
+  color: var(--marca-navy);
+}
+
+/* Enviar es la accion que hace avanzar la guia: se gana el menta. */
+.gre-icono-accion:hover {
+  background: var(--gre-acento-suave);
+  color: var(--marca-menta-texto);
+}
+
+.gre-icono-peligro:hover {
+  background: #FBECEA;
+  color: #A3251C;
+}
+
+/* La cabecera pegajosa de la tabla tapaba los iconos al desplazar. */
+.gre-listado tbody td { position: relative; }
