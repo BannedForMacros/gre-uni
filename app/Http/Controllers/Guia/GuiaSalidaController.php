@@ -1126,7 +1126,13 @@ class GuiaSalidaController extends Controller
         $obsevracion_auditoria = $msj;
 
         // actualizar serie nube
-        if ($procede == true) {
+        //
+        // Solo cuando la guia se GENERA. El borrador no pasa por asignarSerie()
+        // -no gasta correlativo a proposito-, asi que $asignarSerie ni existe:
+        // guardar un avance moria con "Undefined variable $asignarSerie" y el
+        // usuario perdia todo lo tecleado con un 500. Mismo fallo que ya se
+        // corrigio en Guia de Ingreso.
+        if ($procede == true && $guardar_avance == false) {
             $updateSerie = Serie::find($asignarSerie->serieAsignada->id);
             // dd($datos);
             $updateSerie->numero = $datos['numero'];
@@ -1213,8 +1219,13 @@ class GuiaSalidaController extends Controller
         }
 
         if ($procede == true) {
-            $msj = "<b>Guia de Salida registrada Nº: {$datos['serie']}-{$datos['numero']}</b>";
-            if ($datos['envio_sunat'] == 0) {
+            // El borrador no tiene numero -no gasta correlativo-, y leer
+            // $datos['numero'] ahi tumbaba la peticion entera con un 500.
+            $msj = ($guardar_avance == true)
+                ? "<b>Avance de guia guardado</b>"
+                : "<b>Guia de Salida registrada Nº: {$datos['serie']}-{$datos['numero']}</b>";
+
+            if ($guardar_avance == false && $datos['envio_sunat'] == 0) {
                 $link = route('guiasalida.pdf', ['guia' => $store, 'valorada' => 0]);
                 $msj = "{$msj} <a class='btn btn-sm btn-success' href='{$link}' target='_blank'><i class='fa fa-external-link'></i> Ver</a>";
             }
