@@ -99,10 +99,10 @@
                 <thead>
                   <tr>
                     <th class="gre-orden" @click="ordenarPor('numero')">Serie <span class="gre-orden-flecha" :class="{ activa: ordenActivo('numero') }" x-text="flecha('numero')"></span></th>
-                    <th class="gre-orden" @click="ordenarPor('razonSocial')">Razón social <span class="gre-orden-flecha" :class="{ activa: ordenActivo('razonSocial') }" x-text="flecha('razonSocial')"></span></th>
-                    <th class="gre-orden" @click="ordenarPor('fechaEmision')">F. Emisión <span class="gre-orden-flecha" :class="{ activa: ordenActivo('fechaEmision') }" x-text="flecha('fechaEmision')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('razonSocial')">Razón Social <span class="gre-orden-flecha" :class="{ activa: ordenActivo('razonSocial') }" x-text="flecha('razonSocial')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('fechaEmision')">Fecha Emisión <span class="gre-orden-flecha" :class="{ activa: ordenActivo('fechaEmision') }" x-text="flecha('fechaEmision')"></span></th>
                     <th class="gre-orden text-end" @click="ordenarPor('totalVenta')">Importe <span class="gre-orden-flecha" :class="{ activa: ordenActivo('totalVenta') }" x-text="flecha('totalVenta')"></span></th>
-                    <th class="text-center">SUNAT</th>
+                    <th class="text-center">Enviar Sunat</th>
                     <th class="gre-orden" @click="ordenarPor('estadoNombre')">Estado <span class="gre-orden-flecha" :class="{ activa: ordenActivo('estadoNombre') }" x-text="flecha('estadoNombre')"></span></th>
                     <th class="text-center">Acción</th>
                   </tr>
