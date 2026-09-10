@@ -204,9 +204,25 @@ window.greGuiaListado = function (config) {
             this.pagina = 1;
         },
 
+        /**
+         * La flecha se dibuja SIEMPRE, y el css la deja invisible hasta que el
+         * puntero pasa por la cabecera. Asi se sabe que una columna se puede
+         * ordenar antes de hacer clic, en vez de tener que descubrirlo.
+         */
         flecha: function (campo) {
-            if (this.orden.campo !== campo) { return ''; }
-            return this.orden.dir === 'asc' ? '▲' : '▼';
+            if (this.orden.campo !== campo) { return '\u25B2'; }
+            return this.orden.dir === 'asc' ? '\u25B2' : '\u25BC';
+        },
+
+        ordenActivo: function (campo) {
+            return this.orden.campo === campo;
+        },
+
+        /** La clase del distintivo de estado, por id y no por nombre: el nombre
+         *  lo edita el cliente desde su tabla de estados y el color se perderia. */
+        claseEstado: function (guia) {
+            var id = Number(guia.guiaEstadoId) || 0;
+            return 'gre-estado gre-estado-' + (id >= 1 && id <= 4 ? id : 1);
         },
 
         irA: function (n) {

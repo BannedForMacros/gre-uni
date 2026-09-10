@@ -24,14 +24,15 @@
     <div class="row justify-content-center">
       <div class="col-md-12">
 
-        <div class="row">
-          <div class="col-md-12">
-            <h5>
-              <i class="fa fa-list"></i> Guías de Ingreso
-              <a href="{{ route('guiaingreso.create') }}" class="btn btn-primary btn-sm float-end">
-                <i class="fa fa-plus"></i> Nueva
-              </a>
-            </h5>
+        <div class="gre-cabecera">
+          <h1>Guías de Ingreso</h1>
+          <span class="gre-cuenta" x-show="hayGuias" x-cloak>
+            <span x-text="guiasFiltradas.length"></span>
+          </span>
+          <div class="gre-acciones">
+            <a href="{{ route('guiaingreso.create') }}" class="btn btn-primary btn-sm">
+              <i class="fa fa-plus"></i> Nueva guía
+            </a>
           </div>
         </div>
 
@@ -61,16 +62,23 @@
                      x-model="filtros.numero">
             </div>
             <div class="col-md-2">
-              <button type="submit" class="btn btn-success w-100" :disabled="cargando">
+              <button type="submit" class="btn btn-primary w-100" :disabled="cargando">
                 <span x-show="!cargando"><i class="fa fa-search"></i> Buscar</span>
                 <span x-show="cargando" x-cloak><i class="fa fa-circle-notch fa-spin"></i> Buscando…</span>
               </button>
             </div>
             <div class="col-md-3">
               <label class="form-label" for="filtro_rapido">Filtrar resultados</label>
-              <input type="search" class="form-control" id="filtro_rapido"
-                     placeholder="Serie, proveedor o estado"
-                     x-model="filtroRapido" @input="pagina = 1">
+              <div class="gre-busqueda">
+                <i class="fa fa-search"></i>
+                <input type="search" class="form-control" id="filtro_rapido"
+                       placeholder="Filtrar por serie, proveedor o estado"
+                       x-model="filtroRapido" @input="pagina = 1">
+                <button type="button" class="gre-busqueda-limpiar" x-show="filtroRapido" x-cloak
+                        title="Limpiar" @click="filtroRapido = ''; pagina = 1">
+                  <i class="fa fa-times"></i>
+                </button>
+              </div>
             </div>
           </div>
         </form>
@@ -82,31 +90,36 @@
         <div class="row mt-3">
           <div class="col-md-12">
             <div class="gre-tabla">
-              <table class="table table-hover table-sm table-bordered gre-detalle">
+              <table class="table table-hover table-sm gre-listado">
                 <thead>
                   <tr>
-                    <th class="gre-orden" @click="ordenarPor('estadoNombre')">Condición <span x-text="flecha('estadoNombre')"></span></th>
-                    <th class="gre-orden" @click="ordenarPor('numero')">Serie <span x-text="flecha('numero')"></span></th>
-                    <th class="gre-orden" @click="ordenarPor('razonSocial')">Proveedor <span x-text="flecha('razonSocial')"></span></th>
-                    <th class="gre-orden" @click="ordenarPor('fechaEmision')">F. Emisión <span x-text="flecha('fechaEmision')"></span></th>
-                    <th class="gre-orden text-end" @click="ordenarPor('totalVenta')">Importe <span x-text="flecha('totalVenta')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('estadoNombre')">Condición <span class="gre-orden-flecha" :class="{ activa: ordenActivo('estadoNombre') }" x-text="flecha('estadoNombre')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('numero')">Serie <span class="gre-orden-flecha" :class="{ activa: ordenActivo('numero') }" x-text="flecha('numero')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('razonSocial')">Proveedor <span class="gre-orden-flecha" :class="{ activa: ordenActivo('razonSocial') }" x-text="flecha('razonSocial')"></span></th>
+                    <th class="gre-orden" @click="ordenarPor('fechaEmision')">F. Emisión <span class="gre-orden-flecha" :class="{ activa: ordenActivo('fechaEmision') }" x-text="flecha('fechaEmision')"></span></th>
+                    <th class="gre-orden text-end" @click="ordenarPor('totalVenta')">Importe <span class="gre-orden-flecha" :class="{ activa: ordenActivo('totalVenta') }" x-text="flecha('totalVenta')"></span></th>
                     <th class="text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <template x-for="g in guiasPagina" :key="g.id">
                     <tr>
-                      <td class="align-middle" x-text="g.estadoNombre"></td>
-                      <td class="align-middle" x-text="g.documento"></td>
-                      <td class="align-middle" x-text="g.razonSocial"></td>
-                      <td class="align-middle" x-text="fecha(g.fechaEmision)"></td>
-                      <td class="align-middle gre-num" x-text="money(g.totalVenta)"></td>
-                      <td class="align-middle text-center">
-                        <div class="btn-group btn-group-sm">
-                          <a :href="g.urlPdf" target="_blank" class="btn btn-sm btn-primary">
+                      <td>
+                        <span :class="claseEstado(g)" x-text="g.estadoNombre"></span>
+                      </td>
+                      <td class="gre-doc" x-text="g.documento"></td>
+                      <td>
+                        <span x-show="g.razonSocial" x-text="g.razonSocial"></span>
+                        <span class="gre-sin-dato" x-show="!g.razonSocial" x-cloak>Sin registrar</span>
+                      </td>
+                      <td x-text="fecha(g.fechaEmision)"></td>
+                      <td class="gre-importe" x-text="money(g.totalVenta)"></td>
+                      <td>
+                        <div class="btn-group btn-group-sm gre-fila-acciones">
+                          <a :href="g.urlPdf" target="_blank" class="btn btn-sm btn-outline-primary">
                             <i class="fa fa-external-link"></i> Ver
                           </a>
-                          <button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split"
+                          <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split"
                                   data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="visually-hidden">Más acciones</span>
                           </button>
@@ -134,6 +147,21 @@
                         </div>
                       </td>
                     </tr>
+                  </template>
+
+                  {{-- Mientras llegan los datos la tabla se quedaba en blanco y
+                       parecia colgada. El esqueleto ocupa el sitio de las filas. --}}
+                  <template x-if="cargando && !hayGuias">
+                    <template x-for="n in 5" :key="n">
+                      <tr class="gre-esqueleto">
+                        <td><span></span></td>
+                        <td><span></span></td>
+                        <td><span></span></td>
+                        <td><span></span></td>
+                        <td><span></span></td>
+                        <td><span></span></td>
+                      </tr>
+                    </template>
                   </template>
 
                   <tr x-show="!hayGuias && !cargando">

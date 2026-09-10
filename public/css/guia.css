@@ -26,14 +26,7 @@
 .gre ::selection      { background: var(--gre-acento-suave); color: var(--gre-texto); }
 .gre input, .gre select, .gre textarea { caret-color: var(--gre-acento); }
 
-.gre .form-control:focus,
-.gre .form-select:focus,
-.gre .btn:focus-visible,
-.gre .form-check-input:focus {
-  border-color: var(--gre-acento);
-  box-shadow: 0 0 0 3px rgba(56, 116, 255, .18);
-  outline: none;
-}
+
 
 /* --- Secciones del formulario --------------------------------------------
    Antes eran ~20 campos en una rejilla plana: para encontrar uno habia que
@@ -108,24 +101,6 @@
   font-weight: 600;
   letter-spacing: .045em;
   text-transform: uppercase;
-  color: var(--gre-texto-tenue);
-}
-
-.gre .form-control,
-.gre .form-select {
-  border-color: var(--gre-borde);
-  border-radius: .375rem;
-  font-size: .875rem;
-  color: var(--gre-texto);
-}
-
-.gre .form-control::placeholder { color: #9aa4b8; }
-
-/* Un campo de solo lectura no se rellena a mano: se marca como dato, no como
-   casilla vacia esperando escritura. */
-.gre .form-control[readonly] {
-  background: var(--gre-fondo);
-  border-color: var(--gre-borde-tenue);
   color: var(--gre-texto-tenue);
 }
 
@@ -561,51 +536,6 @@
    Orden, filtro rapido y paginacion se resuelven en el componente. Era lo unico
    que aportaba DataTables, y mantenerlo obligaba a seguir generando la tabla en
    PHP para volver a inicializarlo en cada busqueda. */
-.gre-filtros {
-  background: var(--gre-superficie);
-  border: 1px solid var(--gre-borde-tenue);
-  border-radius: .5rem;
-  padding: .875rem 1rem;
-}
-
-.gre-filtros .form-label {
-  font-size: .75rem;
-  font-weight: 600;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  color: var(--gre-texto-tenue);
-  margin-bottom: .25rem;
-}
-
-/* Cabecera ordenable. Sin el cursor y el resalte no hay nada que sugiera
-   que la columna se puede tocar. */
-.gre-orden {
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.gre-orden:hover { color: var(--gre-acento); }
-.gre-orden span  { font-size: .7rem; opacity: .7; }
-
-.gre-paginacion {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: .75rem;
-  padding: .5rem .25rem;
-}
-
-.gre-paginacion-info {
-  font-size: .85rem;
-  color: var(--gre-texto-tenue);
-  font-variant-numeric: tabular-nums;
-}
-
-.gre-paginacion-info strong { color: var(--gre-texto); }
-
 .gre-error {
   display: flex;
   align-items: center;
@@ -802,3 +732,524 @@
   letter-spacing: .03em;
   color: var(--gre-texto);
 }
+
+/* =============================================================================
+   LISTADO
+   -----------------------------------------------------------------------------
+   Un listado de guias se lee, no se rellena. Lo que se busca de un vistazo es
+   el estado y el importe; todo lo demas es apoyo. Antes el estado era texto
+   plano del mismo gris que el resto, asi que habia que LEER cada fila para
+   saber cual estaba rechazada.
+   ========================================================================== */
+
+/* --- Cabecera de pantalla -------------------------------------------------- */
+.gre-cabecera {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.gre-cabecera h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--gre-texto);
+}
+
+.gre-cabecera .gre-cuenta {
+  padding: .1875rem .5rem;
+  border-radius: 1rem;
+  background: var(--gre-borde-tenue);
+  color: var(--gre-texto-tenue);
+  font-size: .75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gre-cabecera .gre-acciones { margin-left: auto; display: flex; gap: .5rem; }
+
+/* --- Panel de filtros ------------------------------------------------------ */
+.gre-filtros {
+  padding: .875rem;
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .625rem;
+  box-shadow: 0 1px 2px rgba(49, 55, 74, .04);
+}
+
+/* Buscador con la lupa dentro: el icono explica que hace el campo sin gastar
+   una etiqueta, y deja sitio a la equis para limpiar. */
+.gre-busqueda { position: relative; }
+
+.gre-busqueda .form-control { padding-left: 2rem; }
+
+.gre-busqueda .fa-magnifying-glass,
+.gre-busqueda .fa-search {
+  position: absolute;
+  left: .625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9aa4b8;
+  font-size: .8125rem;
+  pointer-events: none;
+}
+
+.gre-busqueda-limpiar {
+  position: absolute;
+  right: .375rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: none;
+  color: var(--gre-texto-tenue);
+  line-height: 1;
+  padding: .25rem;
+  border-radius: .25rem;
+  cursor: pointer;
+}
+
+.gre-busqueda-limpiar:hover { color: var(--gre-texto); background: var(--gre-borde-tenue); }
+
+/* --- Distintivo de estado --------------------------------------------------
+   El estado es LA columna que se mira primero. En color se encuentra sin leer;
+   en texto gris hay que recorrer la tabla entera. Los tonos son los semanticos
+   de siempre: verde aceptado, rojo rechazado, ambar en curso. */
+.gre-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  padding: .1875rem .5rem .1875rem .4375rem;
+  border-radius: 1rem;
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+/* El punto hace legible el estado sin depender solo del color: quien no
+   distingue verde de rojo sigue viendo tres formas distintas por su texto, y
+   el punto da un ancla comun. */
+.gre-estado::before {
+  content: "";
+  width: .4375rem;
+  height: .4375rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.gre-estado-1 { background: #eef2f9; color: #4a5875; }  /* Generada  */
+.gre-estado-2 { background: #e3f6ec; color: #12674a; }  /* Aceptada  */
+.gre-estado-3 { background: #fdeceb; color: #a51f1a; }  /* Rechazada */
+.gre-estado-4 { background: #fdf2e0; color: #8a5100; }  /* Avance    */
+
+/* --- Tabla del listado ----------------------------------------------------- */
+.gre-listado { margin-bottom: 0; }
+
+.gre-listado thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--gre-fondo);
+  border-bottom: 1px solid var(--gre-borde);
+  padding: .5rem .75rem;
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--gre-texto-tenue);
+  white-space: nowrap;
+}
+
+.gre-listado tbody td {
+  padding: .5rem .75rem;
+  border-top: 1px solid var(--gre-borde-tenue);
+  border-bottom: 0;
+  font-size: .8125rem;
+  color: var(--gre-texto);
+  vertical-align: middle;
+}
+
+.gre-listado tbody tr:hover td { background: #f7f9fd; }
+
+/* El numero de guia es la identidad de la fila: se busca por el. */
+.gre-doc {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--gre-texto);
+}
+
+.gre-importe {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Un dato que falta se dice, no se deja en blanco: una celda vacia parece un
+   error de carga. */
+.gre-sin-dato { color: #b3bccd; }
+
+/* Cabecera ordenable: la flecha aparece al pasar por encima, para que se sepa
+   que la columna se puede ordenar antes de hacer clic. */
+.gre-orden { cursor: pointer; user-select: none; }
+.gre-orden:hover { color: var(--gre-texto); }
+
+.gre-orden-flecha {
+  display: inline-block;
+  width: .75rem;
+  opacity: 0;
+  transition: opacity .15s ease-out;
+}
+
+.gre-orden:hover .gre-orden-flecha { opacity: .45; }
+.gre-orden .gre-orden-flecha.activa { opacity: 1; color: var(--gre-acento); }
+
+/* --- Esqueleto de carga ----------------------------------------------------
+   Mientras llegan los datos la tabla se quedaba en blanco y parecia colgada.
+   El esqueleto ocupa el sitio que van a ocupar las filas. */
+.gre-esqueleto span {
+  display: block;
+  height: .75rem;
+  border-radius: .25rem;
+  background: linear-gradient(90deg, #eef1f6 25%, #e2e7ef 37%, #eef1f6 63%);
+  background-size: 400% 100%;
+  animation: gre-latido 1.4s ease-in-out infinite;
+}
+
+@keyframes gre-latido {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gre-esqueleto span { animation: none; }
+}
+
+/* --- Pie del listado ------------------------------------------------------- */
+.gre-paginacion {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .625rem .875rem;
+  border-top: 1px solid var(--gre-borde-tenue);
+  background: var(--gre-superficie);
+  border-radius: 0 0 .625rem .625rem;
+}
+
+.gre-paginacion-info {
+  font-size: .8125rem;
+  color: var(--gre-texto-tenue);
+}
+
+.gre-paginacion-info strong {
+  color: var(--gre-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.gre-paginacion .btn-group { margin-left: auto; }
+
+/* --- Acciones de fila ------------------------------------------------------ */
+.gre-fila-acciones {
+  display: flex;
+  gap: .25rem;
+  justify-content: center;
+}
+
+.gre-fila-acciones .btn {
+  --bs-btn-padding-y: .25rem;
+  --bs-btn-padding-x: .5rem;
+  font-size: .8125rem;
+}
+
+/* El par Ver + menu es una accion secundaria repetida en cada fila: en solido
+   compite con el boton primario de la cabecera y llena la tabla de bloques de
+   color. En contorno se ve igual de claro y deja mandar al dato. */
+.gre-fila-acciones .btn-outline-primary {
+  --bs-btn-color: var(--gre-acento);
+  --bs-btn-border-color: var(--gre-borde);
+  --bs-btn-hover-bg: var(--gre-acento-suave);
+  --bs-btn-hover-color: var(--gre-acento);
+  --bs-btn-hover-border-color: var(--gre-acento);
+}
+
+/* --- Un solo acento --------------------------------------------------------
+   Buscar era verde y "Nueva guia" azul: dos colores de accion distintos en la
+   misma pantalla, sin que la diferencia significara nada. Y el azul era el de
+   Bootstrap, no el de la paleta. Ahora todo lo primario usa --gre-acento. */
+.gre .btn-primary {
+  --bs-btn-bg: var(--gre-acento);
+  --bs-btn-border-color: var(--gre-acento);
+  --bs-btn-hover-bg: #2c62e0;
+  --bs-btn-hover-border-color: #2c62e0;
+  --bs-btn-active-bg: #2757c9;
+  --bs-btn-active-border-color: #2757c9;
+  --bs-btn-disabled-bg: #a7bdf5;
+  --bs-btn-disabled-border-color: #a7bdf5;
+}
+
+/* --- La tabla es una superficie, no el fondo -------------------------------
+   Sin fondo propio la tabla se derrama sobre el gris de la pagina y el listado
+   se lee como texto suelto en vez de como un bloque de datos. */
+.gre-tabla {
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .625rem;
+  box-shadow: 0 1px 2px rgba(49, 55, 74, .04);
+  overflow: hidden;
+}
+
+.gre-tabla + .gre-paginacion {
+  margin-top: -1px;
+  border: 1px solid var(--gre-borde-tenue);
+  border-top: 0;
+  border-radius: 0 0 .625rem .625rem;
+}
+
+/* =============================================================================
+   CONTROLES
+   -----------------------------------------------------------------------------
+   Hasta aqui la pantalla eran controles de Bootstrap con retoques encima, y se
+   notaba: bordes duros, radios chicos, el resplandor azul del foco y la flecha
+   del sistema en cada desplegable. Esto reemplaza la capa entera dentro de
+   .gre en vez de parchearla.
+
+   Nada de esto necesita build ni fuentes externas: la aplicacion se instala en
+   el servidor del cliente y puede no tener salida a internet.
+   ========================================================================== */
+
+:root {
+  --gre-radio:       .5rem;
+  --gre-radio-chico: .375rem;
+  --gre-alto:        2.375rem;
+
+  --gre-borde-campo: #dfe4ed;
+  --gre-anillo:      rgba(56, 116, 255, .15);
+  --gre-sombra-sutil: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+/* --- Campos de texto, numero, fecha y area -------------------------------- */
+.gre .form-control,
+.gre .form-select,
+.gre .input-group-text {
+  height: var(--gre-alto);
+  padding: .4375rem .6875rem;
+  border: 1px solid var(--gre-borde-campo);
+  border-radius: var(--gre-radio);
+  background-color: var(--gre-superficie);
+  box-shadow: var(--gre-sombra-sutil);
+  font-size: .8438rem;
+  line-height: 1.4;
+  color: var(--gre-texto);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.gre textarea.form-control { height: auto; min-height: 4.5rem; }
+
+.gre .form-control::placeholder { color: #a3adc0; }
+
+.gre .form-control:hover:not(:disabled):not([readonly]),
+.gre .form-select:hover:not(:disabled) { border-color: #c8d1e0; }
+
+/* Anillo de foco: un halo separado del borde, no el resplandor difuso de
+   Bootstrap. Se ve a un metro de la pantalla, que es como se trabaja aqui. */
+.gre .form-control:focus,
+.gre .form-select:focus {
+  border-color: var(--gre-acento);
+  box-shadow: 0 0 0 3px var(--gre-anillo);
+  outline: none;
+}
+
+.gre .form-control[readonly],
+.gre .form-control:disabled,
+.gre .form-select:disabled {
+  background-color: #f6f8fb;
+  border-color: #e8ecf3;
+  box-shadow: none;
+  color: var(--gre-texto-tenue);
+  cursor: default;
+}
+
+/* La flecha del desplegable, dibujada: la del sistema cambia de forma en cada
+   navegador y rompe la coherencia con el resto de la pantalla. */
+.gre .form-select {
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23697386' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .6875rem center;
+  background-size: 12px;
+}
+
+/* El icono del calendario tampoco es del sistema. */
+.gre input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .5;
+  cursor: pointer;
+  transition: opacity .15s ease;
+}
+.gre input[type="date"]:hover::-webkit-calendar-picker-indicator { opacity: .9; }
+
+/* --- Casillas e interruptores --------------------------------------------- */
+.gre .form-check-input {
+  width: 1.0625rem;
+  height: 1.0625rem;
+  margin-top: .125rem;
+  border: 1px solid #c8d1e0;
+  border-radius: .3125rem;
+  box-shadow: none;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.gre .form-check-input:checked {
+  background-color: var(--gre-acento);
+  border-color: var(--gre-acento);
+}
+
+.gre .form-check-input:focus-visible {
+  border-color: var(--gre-acento);
+  box-shadow: 0 0 0 3px var(--gre-anillo);
+}
+
+.gre .form-check-input[type="radio"] { border-radius: 50%; }
+
+.gre .form-switch .form-check-input { width: 2rem; border-radius: 1rem; }
+
+.gre .form-check-label { font-size: .8438rem; color: var(--gre-texto); }
+
+/* --- Botones ---------------------------------------------------------------
+   Un solo cuerpo para todos: mismo alto que los campos, mismo radio, peso
+   medio. Antes cada boton traia el estilo que le tocaba de Bootstrap -solido,
+   oscuro, verde- y la pantalla parecia ensamblada de piezas ajenas. */
+.gre .btn {
+  --bs-btn-padding-y: .4375rem;
+  --bs-btn-padding-x: .875rem;
+  --bs-btn-font-size: .8438rem;
+  --bs-btn-font-weight: 500;
+  --bs-btn-border-radius: var(--gre-radio);
+  min-height: var(--gre-alto);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4375rem;
+  white-space: nowrap;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+
+.gre .btn:active { transform: translateY(1px); }
+
+.gre .btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--gre-anillo);
+  outline: none;
+}
+
+.gre .btn-sm {
+  --bs-btn-padding-y: .25rem;
+  --bs-btn-padding-x: .625rem;
+  --bs-btn-font-size: .8125rem;
+  --bs-btn-border-radius: var(--gre-radio-chico);
+  min-height: 2rem;
+}
+
+.gre .btn-primary {
+  --bs-btn-bg: var(--gre-acento);
+  --bs-btn-border-color: var(--gre-acento);
+  --bs-btn-hover-bg: #2c62e0;
+  --bs-btn-hover-border-color: #2c62e0;
+  --bs-btn-active-bg: #2757c9;
+  --bs-btn-active-border-color: #2757c9;
+  --bs-btn-disabled-bg: #b5c7f7;
+  --bs-btn-disabled-border-color: #b5c7f7;
+  box-shadow: 0 1px 2px rgba(56, 116, 255, .28);
+}
+
+/* Secundario: gris claro con borde. Es lo que sostiene la mayoria de acciones
+   sin robarle la atencion al primario. */
+.gre .btn-outline-secondary,
+.gre .btn-outline-primary {
+  --bs-btn-color: var(--gre-texto);
+  --bs-btn-bg: var(--gre-superficie);
+  --bs-btn-border-color: var(--gre-borde-campo);
+  --bs-btn-hover-color: var(--gre-texto);
+  --bs-btn-hover-bg: #f4f7fc;
+  --bs-btn-hover-border-color: #c8d1e0;
+  --bs-btn-active-color: var(--gre-texto);
+  --bs-btn-active-bg: #edf2fa;
+  --bs-btn-active-border-color: #c8d1e0;
+  box-shadow: var(--gre-sombra-sutil);
+}
+
+.gre .btn-outline-danger {
+  --bs-btn-color: #b42318;
+  --bs-btn-bg: var(--gre-superficie);
+  --bs-btn-border-color: #f0c9c5;
+  --bs-btn-hover-color: #912018;
+  --bs-btn-hover-bg: #fdf2f1;
+  --bs-btn-hover-border-color: #e5a9a3;
+  box-shadow: var(--gre-sombra-sutil);
+}
+
+/* Grupo de botones: un solo bloque, sin costuras dobles. */
+.gre .btn-group > .btn:not(:first-child) { margin-left: -1px; }
+.gre .btn-group > .btn:focus-visible { z-index: 3; }
+
+.gre .input-group > .form-control:not(:last-child),
+.gre .input-group > .form-select:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.gre .input-group > .btn:not(:first-child),
+.gre .input-group > .form-select:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* --- Menu desplegable ------------------------------------------------------ */
+.gre .dropdown-menu {
+  border: 1px solid var(--gre-borde-campo);
+  border-radius: var(--gre-radio);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, .1), 0 2px 6px rgba(16, 24, 40, .05);
+  padding: .3125rem;
+  font-size: .8438rem;
+  min-width: 12rem;
+}
+
+.gre .dropdown-item {
+  border-radius: var(--gre-radio-chico);
+  padding: .4375rem .625rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.gre .dropdown-item:hover,
+.gre .dropdown-item:focus { background: #f4f7fc; }
+
+.gre .dropdown-divider { margin: .3125rem 0; border-color: var(--gre-borde-tenue); }
+
+/* --- Ajustes sobre la capa de controles -------------------------------------
+   Van despues a proposito: la capa de arriba fija el relleno de todos los
+   campos y aqui se corrige lo puntual, sin pelear con la especificidad. */
+
+/* El icono de la lupa se estaba comiendo la primera letra del texto. */
+.gre .gre-busqueda .form-control { padding-left: 2.125rem; }
+
+/* El boton de menu solo lleva una flecha: no necesita el ancho de un boton con
+   texto, y vacio parecia un boton sin estilo. */
+.gre .dropdown-toggle-split {
+  padding-left: .5rem;
+  padding-right: .5rem;
+  min-width: 1.875rem;
+}
+
+.gre .dropdown-toggle-split::after { margin: 0; }
+
+/* El borde de la tabla era tan claro que la superficie no se distinguia del
+   fondo de la pagina y el listado se leia como texto suelto. */
+.gre-tabla,
+.gre-tabla + .gre-paginacion,
+.gre-filtros {
+  border-color: var(--gre-borde-campo);
+}
+
+.gre-filtros { box-shadow: var(--gre-sombra-sutil); }
