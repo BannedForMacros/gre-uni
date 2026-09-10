@@ -1834,3 +1834,95 @@ body { background: var(--gre-fondo); }
 .gre-icono[data-ayuda]:focus-visible::before {
   transform: translateX(0) translateY(0);
 }
+
+/* --- Iconos de accion, pintados por lo que hacen ----------------------------
+   Un icono gris no dice si abre un PDF o borra la guia, y quien viene de leer
+   "Eliminar" en un menu no puede quedarse adivinando: el color tiene que decir
+   de que familia es la accion ANTES de leer nada.
+
+   Tres familias, no cinco: consultar (marino, no cambia nada), continuar (azul
+   soporte, edita), enviar (menta, hace avanzar la guia) y anular (rojo,
+   destruye). Cada uno sobre su propio tinte, para que se lea como un boton y
+   no como un adorno.
+   ------------------------------------------------------------------------- */
+.gre-icono {
+  border: 1px solid transparent;
+  font-size: .875rem;
+}
+
+.gre-icono-ver {
+  background: rgba(38, 54, 109, .07);
+  border-color: rgba(38, 54, 109, .14);
+  color: var(--marca-navy);
+}
+.gre-icono-ver:hover {
+  background: rgba(38, 54, 109, .14);
+  border-color: rgba(38, 54, 109, .3);
+  color: var(--marca-navy);
+}
+
+.gre-icono-editar {
+  background: rgba(44, 110, 170, .1);
+  border-color: rgba(44, 110, 170, .25);
+  color: #1F5580;
+}
+.gre-icono-editar:hover {
+  background: rgba(44, 110, 170, .18);
+  border-color: rgba(44, 110, 170, .45);
+  color: #17436A;
+}
+
+.gre-icono-enviar {
+  background: rgba(58, 194, 156, .14);
+  border-color: rgba(58, 194, 156, .4);
+  color: var(--marca-menta-texto);
+}
+.gre-icono-enviar:hover {
+  background: rgba(58, 194, 156, .24);
+  border-color: var(--marca-menta);
+  color: #14624E;
+}
+
+.gre-icono-peligro {
+  background: #FCEDEB;
+  border-color: #F0C4BE;
+  color: #A3251C;
+}
+.gre-icono-peligro:hover {
+  background: #F8DAD6;
+  border-color: #E09A92;
+  color: #8A1E16;
+}
+
+/* --- Leyenda de iconos ------------------------------------------------------
+   Los clientes vienen de una version donde estas acciones eran texto en un
+   menu. El color agrupa por familia, pero no dice QUE hace cada icono, y el
+   tooltip hay que ir a buscarlo uno por uno. La leyenda lo deja escrito a la
+   vista, una vez por pantalla, y deja de mirarse sola en cuanto se aprende.
+   ------------------------------------------------------------------------- */
+.gre-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .375rem 1.25rem;
+  padding: .625rem .875rem;
+  border-top: 1px solid var(--gre-borde-tenue);
+  background: var(--gre-fondo);
+}
+
+.gre-leyenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: .4375rem;
+  font-size: .75rem;
+  color: var(--gre-texto-tenue);
+  white-space: nowrap;
+}
+
+/* Los iconos de la leyenda no se pulsan: son la muestra, no el control. */
+.gre-leyenda .gre-icono {
+  width: 1.625rem;
+  height: 1.625rem;
+  font-size: .75rem;
+  pointer-events: none;
+}

@@ -116,20 +116,20 @@
                       <td class="gre-importe" x-text="money(g.totalVenta)"></td>
                       <td>
                         <div class="gre-fila-acciones">
-                          <a :href="g.urlPdf" target="_blank" class="gre-icono" data-ayuda="Ver la guia en PDF" aria-label="Ver la guia en PDF">
+                          <a :href="g.urlPdf" target="_blank" class="gre-icono gre-icono-ver" data-ayuda="Ver la guia en PDF" aria-label="Ver la guia en PDF">
                             <i class="fa fa-file-lines"></i>
                           </a>
 
-                          <a :href="g.urlPdfValorada" target="_blank" class="gre-icono" data-ayuda="Ver la guia valorada" aria-label="Ver la guia valorada">
+                          <a :href="g.urlPdfValorada" target="_blank" class="gre-icono gre-icono-ver" data-ayuda="Ver la guia valorada" aria-label="Ver la guia valorada">
                             <i class="fa fa-file-invoice-dollar"></i>
                           </a>
 
-                          <a :href="g.urlContinuar" class="gre-icono" data-ayuda="Continuar esta guia" aria-label="Continuar esta guia"
+                          <a :href="g.urlContinuar" class="gre-icono gre-icono-editar" data-ayuda="Continuar esta guia" aria-label="Continuar esta guia"
                              x-show="g.mostrarContinuar" x-cloak>
                             <i class="fa fa-pen"></i>
                           </a>
 
-                          <button type="button" class="gre-icono gre-icono-accion" data-ayuda="Reenviar al DataMart" aria-label="Reenviar al DataMart"
+                          <button type="button" class="gre-icono gre-icono-enviar" data-ayuda="Reenviar al DataMart" aria-label="Reenviar al DataMart"
                                   x-show="g.mostrarGuardarDatamarket" x-cloak @click="reenviarDataMart(g)">
                             <i class="fa fa-paper-plane"></i>
                           </button>
@@ -169,6 +169,36 @@
               </table>
             </div>
 
+
+            {{-- Leyenda de los iconos.
+
+                 Los clientes vienen de una version donde estas acciones eran
+                 texto en un menu. El color agrupa por familia -consultar,
+                 editar, enviar, anular- pero no dice QUE hace cada uno, y el
+                 tooltip hay que ir a buscarlo icono por icono. Esto lo deja
+                 escrito, a la vista, una sola vez por pantalla. --}}
+            <div class="gre-leyenda" x-show="hayGuias" x-cloak>
+                <span class="gre-leyenda-item">
+                  <span class="gre-icono gre-icono-ver"><i class="fa fa-file-lines"></i></span>
+                  Ver PDF
+                </span>
+                <span class="gre-leyenda-item">
+                  <span class="gre-icono gre-icono-ver"><i class="fa fa-file-invoice-dollar"></i></span>
+                  Valorada
+                </span>
+                <span class="gre-leyenda-item">
+                  <span class="gre-icono gre-icono-editar"><i class="fa fa-pen"></i></span>
+                  Continuar
+                </span>
+                <span class="gre-leyenda-item">
+                  <span class="gre-icono gre-icono-enviar"><i class="fa fa-paper-plane"></i></span>
+                  Reenviar al DataMart
+                </span>
+                <span class="gre-leyenda-item">
+                  <span class="gre-icono gre-icono-peligro"><i class="fa fa-trash-can"></i></span>
+                  Eliminar
+                </span>
+            </div>
             <div class="gre-paginacion" x-show="hayGuias">
               <span class="gre-paginacion-info">
                 <span x-text="guiasFiltradas.length"></span>
