@@ -123,30 +123,30 @@
                       </td>
                       <td>
                         <div class="gre-fila-acciones">
-                          <a :href="g.urlPdf" target="_blank" class="gre-icono" title="Ver la guia en PDF">
+                          <a :href="g.urlPdf" target="_blank" class="gre-icono" data-ayuda="Ver la guia en PDF" aria-label="Ver la guia en PDF">
                             <i class="fa fa-file-lines"></i>
                           </a>
 
-                          <a :href="g.urlPdfValorada" target="_blank" class="gre-icono" title="Ver la guia valorada">
+                          <a :href="g.urlPdfValorada" target="_blank" class="gre-icono" data-ayuda="Ver la guia valorada" aria-label="Ver la guia valorada">
                             <i class="fa fa-file-invoice-dollar"></i>
                           </a>
 
-                          <a :href="g.urlContinuar" class="gre-icono" title="Continuar esta guia"
+                          <a :href="g.urlContinuar" class="gre-icono" data-ayuda="Continuar esta guia" aria-label="Continuar esta guia"
                              x-show="g.mostrarContinuar" x-cloak>
                             <i class="fa fa-pen"></i>
                           </a>
 
-                          <button type="button" class="gre-icono gre-icono-accion" title="Reenviar al DataMart"
+                          <button type="button" class="gre-icono gre-icono-accion" data-ayuda="Reenviar al DataMart" aria-label="Reenviar al DataMart"
                                   x-show="g.mostrarGuardarDatamarket" x-cloak @click="reenviarDataMart(g)">
                             <i class="fa fa-paper-plane"></i>
                           </button>
 
-                          <button type="button" class="gre-icono gre-icono-accion" title="Reenviar al facturador"
+                          <button type="button" class="gre-icono gre-icono-accion" data-ayuda="Reenviar al facturador" aria-label="Reenviar al facturador"
                                   x-show="g.verReintentoFacturador" x-cloak @click="reenviarFacturador(g)">
                             <i class="fa fa-rotate-right"></i>
                           </button>
 
-                          <button type="button" class="gre-icono gre-icono-peligro" title="Anular esta guia"
+                          <button type="button" class="gre-icono gre-icono-peligro" data-ayuda="Anular esta guia" aria-label="Anular esta guia"
                                   x-show="g.mostrarAnular" x-cloak @click="anular(g)">
                             <i class="fa fa-ban"></i>
                           </button>

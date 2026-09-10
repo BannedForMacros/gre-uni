@@ -1692,3 +1692,145 @@ body { background: var(--gre-fondo); }
 
 /* La cabecera pegajosa de la tabla tapaba los iconos al desplazar. */
 .gre-listado tbody td { position: relative; }
+
+/* --- Tooltip propio ---------------------------------------------------------
+   Estos clientes llevan anos leyendo "Reenviar a DataMart" en un menu. Pasar a
+   iconos sin mas es quitarles el texto que ya sabian buscar, asi que el nombre
+   de la accion tiene que estar a un golpe de vista, no a un segundo de espera:
+   el title= del navegador tarda casi un segundo, no se puede dar estilo y no
+   aparece nunca con el teclado.
+
+   Este aparece a los 80 ms, con el foco tambien -para quien tabula- y sin una
+   sola linea de JavaScript. El texto va en data-ayuda y ademas en aria-label,
+   que es lo que lee un lector de pantalla.
+   ------------------------------------------------------------------------- */
+.gre-icono { position: relative; }
+
+.gre-icono[data-ayuda]::after {
+  content: attr(data-ayuda);
+  position: absolute;
+  bottom: calc(100% + .375rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(.25rem);
+  z-index: 40;
+
+  padding: .3125rem .5rem;
+  border-radius: var(--gre-radio-chico);
+  background: var(--marca-navy-profundo);
+  color: var(--marca-blanco);
+  font-size: .75rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-transform: none;
+  box-shadow: 0 4px 12px rgba(18, 22, 37, .22);
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease-out .08s, transform .12s ease-out .08s, visibility 0s linear .2s;
+}
+
+/* La punta, para que el globo apunte al icono del que habla. */
+.gre-icono[data-ayuda]::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + .125rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(.25rem);
+  z-index: 40;
+  border: .25rem solid transparent;
+  border-top-color: var(--marca-navy-profundo);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease-out .08s, transform .12s ease-out .08s, visibility 0s linear .2s;
+}
+
+.gre-icono[data-ayuda]:hover::after,
+.gre-icono[data-ayuda]:hover::before,
+.gre-icono[data-ayuda]:focus-visible::after,
+.gre-icono[data-ayuda]:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: .08s, .08s, 0s;
+}
+
+/* En la primera fila el globo se saldria por arriba, tapado por la cabecera
+   pegajosa: ahi baja. */
+.gre-listado tbody tr:first-child .gre-icono[data-ayuda]::after {
+  bottom: auto;
+  top: calc(100% + .375rem);
+}
+
+.gre-listado tbody tr:first-child .gre-icono[data-ayuda]::before {
+  bottom: auto;
+  top: calc(100% + .125rem);
+  border-top-color: transparent;
+  border-bottom-color: var(--marca-navy-profundo);
+}
+
+/* Sin animacion para quien la tiene desactivada en el sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .gre-icono[data-ayuda]::after,
+  .gre-icono[data-ayuda]::before { transition: none; }
+}
+
+/* --- Distintivos de estado, afinados ----------------------------------------
+   "Etiquetas pequenas en mayusculas" es una de las reglas de la marca, y aqui
+   encaja: en mayusculas y con letra espaciada el estado se lee como una
+   etiqueta y no como una palabra suelta dentro de la fila. El borde le da
+   contorno para que no dependa solo del relleno. */
+.gre-estado {
+  padding: .1875rem .5rem .1875rem .4375rem;
+  border: 1px solid transparent;
+  border-radius: .375rem;
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.gre-estado::before { width: .375rem; height: .375rem; }
+
+.gre-estado-1 { background: rgba(38, 54, 109, .07);  border-color: rgba(38, 54, 109, .18);  color: var(--marca-navy); }
+.gre-estado-2 { background: rgba(58, 194, 156, .14); border-color: rgba(58, 194, 156, .45); color: var(--marca-menta-texto); }
+.gre-estado-3 { background: #FCEDEB;                 border-color: #F0C4BE;                 color: #A3251C; }
+.gre-estado-4 { background: rgba(44, 110, 170, .1);  border-color: rgba(44, 110, 170, .3);  color: #1F5580; }
+
+/* --- Correcciones de la columna de acciones ---------------------------------
+   1. Los iconos iban pegados a la derecha mientras la cabecera "ACCION" va
+      centrada: la columna se leia torcida.
+   2. El globo salia centrado sobre el icono, y en la ultima columna de la
+      tabla eso lo sacaba fuera de la pantalla: "Eliminar esta gu...".
+
+   La solucion es que el globo crezca SIEMPRE hacia la izquierda, hacia dentro
+   de la tabla, donde hay sitio de sobra. La punta se queda sobre el centro del
+   icono, que es lo que hace que se entienda de cual habla.
+   ------------------------------------------------------------------------- */
+.gre-fila-acciones { justify-content: center; }
+
+.gre-listado th:last-child,
+.gre-listado td:last-child { text-align: center; }
+
+.gre-icono[data-ayuda]::after {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(.25rem);
+  max-width: none;
+}
+
+.gre-icono[data-ayuda]::before {
+  left: auto;
+  right: .75rem;                /* el centro del icono: 2rem de ancho / 2 - .25 */
+  transform: translateX(0) translateY(.25rem);
+}
+
+.gre-icono[data-ayuda]:hover::after,
+.gre-icono[data-ayuda]:hover::before,
+.gre-icono[data-ayuda]:focus-visible::after,
+.gre-icono[data-ayuda]:focus-visible::before {
+  transform: translateX(0) translateY(0);
+}
