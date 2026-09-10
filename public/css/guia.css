@@ -35,28 +35,153 @@
   outline: none;
 }
 
-/* --- Agrupación de la cabecera ------------------------------------------
-   Antes eran 16 campos en un bloque plano. El usuario tenia que leerlos todos
-   para encontrar uno. Ahora se agrupan por lo que significan. */
-.gre-grupo {
-  border: 1px solid var(--gre-borde-tenue);
-  border-radius: .5rem;
-  padding: 1rem 1rem .5rem;
-  margin-bottom: 1rem;
+/* --- Secciones del formulario --------------------------------------------
+   Antes eran ~20 campos en una rejilla plana: para encontrar uno habia que
+   leerlos todos, y nada indicaba en que orden se llena la guia. Ahora la
+   pantalla va en pasos, en el orden en que se hace el trabajo: que documento
+   es, de quien viene, como se mueve, y que lleva dentro.
+
+   Los pasos van numerados porque aqui la secuencia SI es informacion: la serie
+   se asigna antes de elegir proveedor, y los articulos se cargan al final.
+   ------------------------------------------------------------------------ */
+.gre-seccion {
   background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .625rem;
+  margin-bottom: .875rem;
+  box-shadow: 0 1px 2px rgba(49, 55, 74, .04);
 }
 
-.gre-grupo > legend,
-.gre-grupo > .gre-grupo-titulo {
-  float: none;
-  width: auto;
-  padding: 0 .4rem;
-  margin: 0 0 .75rem -.4rem;
-  font-size: .75rem;
+.gre-seccion-cab {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  padding: .625rem .875rem;
+  border-bottom: 1px solid var(--gre-borde-tenue);
+}
+
+.gre-seccion-cab h2 {
+  margin: 0;
+  font-size: .8125rem;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: .01em;
+  color: var(--gre-texto);
+}
+
+/* El numero del paso. Discreto: ordena, no decora. */
+.gre-paso {
+  flex: 0 0 auto;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  background: var(--gre-acento-suave);
+  color: var(--gre-acento);
+  font-size: .6875rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dato de apoyo a la derecha de la cabecera: sirve para confirmar de un
+   vistazo lo elegido en esa seccion sin tener que releer los campos. */
+.gre-seccion-nota {
+  margin-left: auto;
+  font-size: .75rem;
+  color: var(--gre-texto-tenue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.gre-seccion-cuerpo { padding: .875rem; }
+
+/* --- Etiquetas y campos ---------------------------------------------------
+   La etiqueta y el valor tenian el mismo peso, asi que la pantalla se leia
+   como un muro. La etiqueta pasa a ser un rotulo pequeno y callado; el dato
+   es lo que se lee. */
+.gre .form-label {
+  display: block;
+  margin-bottom: .25rem;
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .045em;
   text-transform: uppercase;
   color: var(--gre-texto-tenue);
+}
+
+.gre .form-control,
+.gre .form-select {
+  border-color: var(--gre-borde);
+  border-radius: .375rem;
+  font-size: .875rem;
+  color: var(--gre-texto);
+}
+
+.gre .form-control::placeholder { color: #9aa4b8; }
+
+/* Un campo de solo lectura no se rellena a mano: se marca como dato, no como
+   casilla vacia esperando escritura. */
+.gre .form-control[readonly] {
+  background: var(--gre-fondo);
+  border-color: var(--gre-borde-tenue);
+  color: var(--gre-texto-tenue);
+}
+
+.gre-campo { margin-bottom: .75rem; }
+
+/* Ayuda bajo un campo. Ocupa sitio siempre que hay texto, nunca salta. */
+.gre-ayuda {
+  margin-top: .25rem;
+  font-size: .75rem;
+  color: var(--gre-texto-tenue);
+}
+
+.gre-ayuda-error { color: #c1121f; }
+
+/* --- Interruptor de consignados ------------------------------------------
+   Es una decision de la guia entera, no un campo mas: se le da su propia
+   superficie para que no se pierda entre los desplegables. */
+.gre-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .5rem .625rem;
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .375rem;
+  background: var(--gre-fondo);
+}
+
+.gre-opcion .form-check-input { margin-top: .15rem; }
+
+.gre-opcion label {
+  margin: 0;
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--gre-texto);
+  cursor: pointer;
+}
+
+.gre-opcion small {
+  display: block;
+  font-weight: 400;
+  color: var(--gre-texto-tenue);
+}
+
+/* --- Grupo de radios en linea --------------------------------------------- */
+.gre-radios {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  min-height: 2.375rem;
+}
+
+.gre-radios .form-check { margin: 0; }
+
+.gre-radios .form-check-label {
+  font-size: .8125rem;
+  color: var(--gre-texto);
 }
 
 /* --- Buscador de artículos ----------------------------------------------
@@ -152,13 +277,7 @@
 .gre-detalle tbody tr:hover { background: var(--gre-borde-tenue); }
 
 /* Cifras alineadas: sin esto las columnas de importe bailan al escribir. */
-.gre-num,
-.gre-detalle td.gre-num,
-.gre-totales input {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  text-align: right;
-}
+.gre-totales input { text-align: right; }
 
 .gre-detalle input.form-control {
   font-variant-numeric: tabular-nums;
@@ -497,4 +616,175 @@
   border-radius: .5rem;
   padding: .6rem .875rem;
   font-size: .875rem;
+}
+
+/* --- Barra de acciones fija ------------------------------------------------
+   Guardar estaba al final de la pagina. Con 40 articulos cargados eso son dos
+   pantallas de scroll para confirmar, y el total quedaba fuera de vista justo
+   en el momento de decidir. La barra queda abajo, con el total al lado del
+   boton: lo que se confirma y el acto de confirmar, juntos.
+   ------------------------------------------------------------------------- */
+/* La barra flota sobre el contenido: sin este colchon, la ultima fila de la
+   tabla y el estado vacio quedan debajo de ella y no se pueden leer. */
+.gre { padding-bottom: 1rem; }
+
+.gre-barra {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem -.75rem 0;
+  padding: .625rem 1rem;
+  background: rgba(255, 255, 255, .92);
+  border-top: 1px solid var(--gre-borde);
+  box-shadow: 0 -2px 10px rgba(49, 55, 74, .06);
+}
+
+/* Chrome 109 lo soporta; donde no, el fondo al 92% ya es legible por si solo. */
+@supports (backdrop-filter: blur(8px)) {
+  .gre-barra { backdrop-filter: blur(8px); }
+}
+
+.gre-barra-total {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  margin-left: auto;
+}
+
+.gre-barra-total span {
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  color: var(--gre-texto-tenue);
+}
+
+.gre-barra-total strong {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gre-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.gre-barra .btn { font-size: .875rem; }
+
+/* --- Cabecera de la pantalla ---------------------------------------------- */
+.gre-titulo {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  margin: 0 0 .875rem;
+}
+
+.gre-titulo h1 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--gre-texto);
+}
+
+.gre-titulo .gre-etiqueta {
+  padding: .125rem .5rem;
+  border-radius: 1rem;
+  background: var(--gre-acento-suave);
+  color: var(--gre-acento);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* --- Numeros ---------------------------------------------------------------
+   Cifras de ancho fijo en todo lo que sea dinero o cantidad. Con la fuente
+   proporcional del sistema, una columna de importes queda desalineada y hay
+   que leer digito a digito para compararlos. */
+/* Cifras de ancho fijo. NO alinea: un codigo de barras es un identificador y
+   se lee desde la izquierda; un importe es una cantidad y va a la derecha, y
+   eso lo decide la vista con .text-end. Mezclarlo dejaba los codigos alineados
+   a la derecha bajo cabeceras alineadas a la izquierda. */
+.gre-num,
+.gre-detalle td.gre-num,
+.gre-detalle input[type="number"],
+.gre-totales input,
+.gre-barra-total strong {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- Barras de desplazamiento ---------------------------------------------
+   La barra del navegador viene sin diseno y corta el area de detalle por la
+   mitad con una franja gris del sistema. */
+.gre-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.gre-scroll::-webkit-scrollbar-track { background: var(--gre-fondo); }
+.gre-scroll::-webkit-scrollbar-thumb {
+  background: #c3cad8;
+  border: 2px solid var(--gre-fondo);
+  border-radius: 6px;
+}
+.gre-scroll::-webkit-scrollbar-thumb:hover { background: #a8b2c4; }
+
+/* --- Buscador con resultados, version campo suelto -------------------------
+   El proveedor usaba select2 y los articulos este combo: dos buscadores con
+   aspecto distinto en la misma pantalla. Ahora comparten vocabulario. */
+.gre-combo-campo { position: relative; }
+
+.gre-combo-campo .gre-combo-lista {
+  left: 0;
+  right: 0;
+}
+
+/* Lo ya elegido se muestra como dato confirmado, no como caja de texto: evita
+   que el usuario dude de si lo selecciono o solo lo escribio. */
+.gre-elegido {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4375rem .625rem;
+  border: 1px solid var(--gre-borde);
+  border-radius: .375rem;
+  background: var(--gre-superficie);
+  font-size: .875rem;
+  color: var(--gre-texto);
+  min-height: 2.375rem;
+}
+
+.gre-elegido-texto {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gre-elegido-ruc {
+  color: var(--gre-texto-tenue);
+  font-variant-numeric: tabular-nums;
+}
+
+.gre-elegido button {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--gre-texto-tenue);
+  line-height: 1;
+  padding: .125rem .25rem;
+  border-radius: .25rem;
+  cursor: pointer;
+}
+
+.gre-elegido button:hover { color: #c1121f; background: var(--gre-borde-tenue); }
+
+/* --- Pantallas chicas ------------------------------------------------------ */
+@media (max-width: 767.98px) {
+  .gre-barra {
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-left: -.5rem;
+    margin-right: -.5rem;
+  }
+  .gre-barra-total { width: 100%; order: -1; margin-left: 0; }
+  .gre-seccion-nota { display: none; }
 }

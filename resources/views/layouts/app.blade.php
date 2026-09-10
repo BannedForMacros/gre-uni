@@ -31,7 +31,9 @@
 
   
   <link rel="stylesheet" href="{{ asset('css/custom.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/guia.css') }}">
+    {{-- filemtime como version: el navegador del cliente cachea el css y tras
+       una actualizacion se quedaba con el viejo hasta un Ctrl+F5 manual. --}}
+    <link rel="stylesheet" href="{{ asset('css/guia.css') }}?v={{ @filemtime(public_path('css/guia.css')) }}">
 
   @routes
   <script type="text/javascript">

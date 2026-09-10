@@ -7,7 +7,6 @@
       placeholder: $(this).data('placeholder'),
     });
 
-    callListarProveedores();
     callListarArticulos();
 
     calcularTotales();
@@ -128,51 +127,17 @@ $(document).on('click', '.delete_item', function(event) {
 
 });
 
-var callListarProveedores = () => {
+// El buscador de proveedor ya no es un select2.
+//
+// Era el unico select2 que quedaba en esta pantalla, junto a un buscador de
+// articulos escrito con Alpine: dos buscadores con distinto aspecto, distinto
+// foco y distinto teclado para la misma tarea. Ahora los dos son el mismo
+// componente (public/js/gre/guia-combo.js) y comparten vocabulario.
+//
+// De aqui desaparecen la inicializacion y el handler de change: el componente
+// publica proveedor_id, proveedor_nombre y proveedor_ruc como inputs del
+// formulario, asi que entran solos en el FormData.
 
-  $(`#proveedor_id`).select2({
-    theme: "bootstrap-5",
-    containerCssClass: "select2--small",
-    dropdownCssClass: "select2--small",
-    ajax: {
-      url: route('guiaingreso.listarProveedores'),
-      // type: 'POST',
-      data: function (params) {
-        var tipo = $('#tipo_busqueda_proveedor').val();
-        var query = {
-          term: params.term,
-          tipo: tipo,
-          _token: _token,
-        }
-        return query;
-      },
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        // console.log(data.items);
-        return {
-          results : data.items
-          // results: $.map(data.items, function (obj) {
-            
-          //   return { id: obj.id, text: obj.name,  };
-          // })
-        };
-      },
-      // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
-    }
-  });
-
-}
-
-$(document).on('change', '#proveedor_id', function(event) {
-  event.preventDefault();
-  /* Act on the event */
-  var data = $('#proveedor_id').select2('data')[0];
-  $('#proveedor_nombre').val(data.proveedor_nombre);
-  $('#proveedor_ruc').val(data.proveedor_ruc);
-
-
-});
 
 $(document).on('click', '.delete_item', function(event) {
   event.preventDefault();
@@ -278,15 +243,10 @@ var callStore = (guardar_avance = false) => {
   var monto_igv = $('#monto_igv').val();
   var total_venta = $('#total_venta').val();
   var comentario = $('#comentario').val();
-  var data_proveedor = $('#proveedor_id').select2('data')[0];
-  var data_proveedor_2 = $('#proveedor_id').data();
-  if (data_proveedor != null) {
-    
-    var proveedor_nombre = data_proveedor.proveedor_nombre;
-    formData.append('proveedor_nombre', $('#proveedor_nombre').val());
-    var proveedor_ruc = data_proveedor.proveedor_ruc;
-    formData.append('proveedor_ruc', $('#proveedor_ruc').val());
-  }
+  // proveedor_nombre y proveedor_ruc son inputs del formulario que publica el
+  // buscador, igual que vendedor_nombre. Antes habia que pedirselos a select2.
+  formData.append('proveedor_nombre', $('#proveedor_nombre').val() || '');
+  formData.append('proveedor_ruc', $('#proveedor_ruc').val() || '');
   // new Response(formData).text().then(console.log)
 
   // vendedor_nombre ya viaja como input del formulario, lo publica el
