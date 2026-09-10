@@ -14,8 +14,13 @@
   <script src="{{ asset('js/app.js') }}" defer></script>
   <script src="{{ asset('assets/jquery/jquery-3.7.0.min.js') }}"></script>
   <!-- Fonts -->
-  <link rel="dns-prefetch" href="//fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
+  {{-- Sin fuentes remotas.
+
+       La aplicacion se instala en el servidor del cliente y muchos no tienen
+       salida a internet: esta hoja de estilo de Google bloqueaba el render de
+       TODAS las pantallas hasta que la peticion expiraba, y despues caia igual
+       a la fuente del sistema. Ahora se usa directamente la del sistema, que
+       en Windows es la que el usuario ya lee todo el dia. --}}
 
   <!-- Styles -->
   <link href="{{ asset('css/app.css') }}" rel="stylesheet">
@@ -45,8 +50,7 @@
 
 <body>
   <div id="app">
-    {{-- <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm"> --}}
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-md navbar-dark gre-nav">
       <div class="container-fluid">
         <a class="navbar-brand" href="{{ url('/') }}">
           {{ config('app.name', 'Laravel') }}

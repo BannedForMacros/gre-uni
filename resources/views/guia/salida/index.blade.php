@@ -61,7 +61,7 @@
                      x-model="filtros.numero">
             </div>
             <div class="col-md-2">
-              <button type="submit" class="btn btn-primary w-100" :disabled="cargando">
+              <button type="submit" class="btn btn-secondary w-100" :disabled="cargando">
                 <span x-show="!cargando"><i class="fa fa-search"></i> Buscar</span>
                 <span x-show="cargando" x-cloak><i class="fa fa-circle-notch fa-spin"></i> Buscando…</span>
               </button>

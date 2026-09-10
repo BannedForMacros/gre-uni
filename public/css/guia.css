@@ -8,16 +8,51 @@
    ========================================================================== */
 
 :root {
-  --gre-acento:        #3874ff;
-  --gre-acento-suave:  #e8f0ff;
-  --gre-texto:         #31374a;
-  --gre-texto-tenue:   #5e6e82;
-  --gre-borde:         #cbd0dd;
-  --gre-borde-tenue:   #eff2f6;
-  --gre-superficie:    #ffffff;
-  --gre-fondo:         #f5f7fa;
-  --gre-ok:            #00864e;
-  --gre-alerta:        #e5780b;
+  /* --- Paleta de marca ---------------------------------------------------
+     Verde menta para destacar, azul marino para lo institucional, navy
+     profundo para el chrome. La proporcion buscada es 60 fondo / 30 marino /
+     10 menta: el menta se gana el sitio, no se reparte. */
+  --marca-menta:          #3AC29C;
+  --marca-menta-oscuro:   #2FA787;   /* hover del boton principal          */
+  --marca-menta-texto:    #197A61;   /* menta legible SOBRE fondo claro    */
+  --marca-navy:           #26366D;
+  --marca-navy-profundo:  #121625;
+  --marca-blanco:         #FFFFFF;
+  --marca-gris-claro:     #D4D5D8;
+  --marca-gris-lavanda:   #C9CDDA;
+  --marca-gris-medio:     #94969D;
+  --marca-gris-borde:     #5C5E68;
+  --marca-azul-soporte:   #2C6EAA;
+
+  /* --- Como se aplica ------------------------------------------------------
+     El menta NO lleva texto sobre blanco: da 2:1 de contraste. Es relleno y
+     cifra sobre marino. El texto lo carga el azul marino, que sobre blanco da
+     11:1. Y el gris medio (#94969D) se queda en 3:1 sobre blanco, asi que como
+     texto secundario se usa el gris borde, que llega a 6.4:1; el gris medio
+     solo sobre superficies marino o en marcadores de posicion. */
+  --gre-acento:        var(--marca-menta);
+  --gre-acento-suave:  rgba(58, 194, 156, .14);
+  --gre-enlace:        var(--marca-azul-soporte);
+
+  --gre-texto:         var(--marca-navy);
+  --gre-texto-tenue:   var(--marca-gris-borde);
+  --gre-texto-sobre-oscuro: var(--marca-gris-lavanda);
+
+  --gre-borde:         var(--marca-gris-lavanda);
+  --gre-borde-tenue:   #E7E9EE;
+  --gre-superficie:    var(--marca-blanco);
+  --gre-fondo:         #F4F5F8;
+
+  --gre-ok:            var(--marca-menta-texto);
+  --gre-alerta:        #9A5B00;
+
+  --gre-radio:         .5rem;
+  --gre-radio-chico:   .375rem;
+  --gre-alto:          2.375rem;
+
+  --gre-borde-campo:   var(--marca-gris-claro);
+  --gre-anillo:        rgba(58, 194, 156, .28);
+  --gre-sombra-sutil:  0 1px 2px rgba(18, 22, 37, .05);
 }
 
 /* --- Superficies del navegador ------------------------------------------
@@ -1020,15 +1055,7 @@
    el servidor del cliente y puede no tener salida a internet.
    ========================================================================== */
 
-:root {
-  --gre-radio:       .5rem;
-  --gre-radio-chico: .375rem;
-  --gre-alto:        2.375rem;
 
-  --gre-borde-campo: #dfe4ed;
-  --gre-anillo:      rgba(56, 116, 255, .15);
-  --gre-sombra-sutil: 0 1px 2px rgba(16, 24, 40, .04);
-}
 
 /* --- Campos de texto, numero, fecha y area -------------------------------- */
 .gre .form-control,
@@ -1253,3 +1280,268 @@
 }
 
 .gre-filtros { box-shadow: var(--gre-sombra-sutil); }
+
+/* =============================================================================
+   MARCA
+   -----------------------------------------------------------------------------
+   Cabecera de la aplicacion, botones y superficies de datos, con la paleta de
+   marca. Lo que sigue va DESPUES de la capa de controles a proposito: aqui se
+   decide el color, alli la forma.
+   ========================================================================== */
+
+/* --- Tipografia -------------------------------------------------------------
+   Pila del sistema, con las geometricas primero. No se descarga ninguna
+   fuente: en un cliente sin internet eso bloquea el render de la pantalla
+   entera. Si se quiere una geometrica de verdad hay que traer el archivo y
+   servirlo desde el propio servidor. */
+body,
+.gre {
+  font-family: "Segoe UI Variable Display", "Segoe UI", Inter, Roboto,
+               -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--gre-texto);
+}
+
+body { background: var(--gre-fondo); }
+
+/* --- Cabecera de la aplicacion ---------------------------------------------
+   Era el negro de Bootstrap (#212529), que no es de la marca y ademas choca
+   con el navy de la paleta: dos oscuros distintos en la misma pantalla. */
+.gre-nav {
+  background: var(--marca-navy-profundo);
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  padding: .5rem 0;
+}
+
+.gre-nav .navbar-brand {
+  color: var(--marca-blanco);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: -.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* La marca lleva su punto de menta: es el 10% de acento del que habla la
+   proporcion, y basta para que la cabecera deje de ser un bloque oscuro. */
+.gre-nav .navbar-brand::before {
+  content: "";
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: var(--marca-menta);
+  box-shadow: 0 0 0 3px rgba(58, 194, 156, .2);
+}
+
+.gre-nav .nav-link {
+  color: var(--marca-gris-lavanda);
+  font-size: .875rem;
+  font-weight: 500;
+  padding: .4375rem .75rem;
+  border-radius: var(--gre-radio-chico);
+  transition: color .15s ease, background-color .15s ease;
+}
+
+.gre-nav .nav-link:hover,
+.gre-nav .nav-link:focus-visible {
+  color: var(--marca-blanco);
+  background: rgba(255, 255, 255, .08);
+}
+
+.gre-nav .nav-link.show { color: var(--marca-blanco); background: rgba(255, 255, 255, .1); }
+
+.gre-nav .dropdown-menu {
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: var(--gre-radio);
+  box-shadow: 0 10px 28px rgba(18, 22, 37, .18);
+  padding: .3125rem;
+  font-size: .875rem;
+}
+
+.gre-nav .dropdown-item {
+  border-radius: var(--gre-radio-chico);
+  padding: .4375rem .625rem;
+  color: var(--gre-texto);
+}
+
+.gre-nav .dropdown-item:hover,
+.gre-nav .dropdown-item:focus { background: var(--gre-acento-suave); color: var(--marca-navy); }
+
+.gre-nav .navbar-toggler {
+  border-color: rgba(255, 255, 255, .2);
+  padding: .3125rem .5rem;
+}
+
+/* --- Botones de marca -------------------------------------------------------
+   Principal: menta con texto marino, tal cual la regla. Da 5.3:1, asi que se
+   lee sin forzar. */
+.gre .btn-primary,
+.btn-primary {
+  --bs-btn-bg: var(--marca-menta);
+  --bs-btn-border-color: var(--marca-menta);
+  --bs-btn-color: var(--marca-navy);
+  --bs-btn-hover-bg: var(--marca-menta-oscuro);
+  --bs-btn-hover-border-color: var(--marca-menta-oscuro);
+  --bs-btn-hover-color: var(--marca-navy);
+  --bs-btn-active-bg: #2A9880;
+  --bs-btn-active-border-color: #2A9880;
+  --bs-btn-active-color: var(--marca-navy);
+  --bs-btn-disabled-bg: #A9E0D0;
+  --bs-btn-disabled-border-color: #A9E0D0;
+  --bs-btn-disabled-color: rgba(38, 54, 109, .5);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(18, 22, 37, .08);
+}
+
+/* Secundario. La regla de marca lo define con texto blanco, que es para fondo
+   oscuro; sobre la superficie clara de trabajo el texto va en marino y el
+   borde se mantiene. Sobre superficies oscuras vuelve a ser blanco, mas abajo. */
+.gre .btn-outline-secondary,
+.gre .btn-outline-primary {
+  --bs-btn-color: var(--marca-navy);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--marca-gris-borde);
+  --bs-btn-hover-color: var(--marca-navy);
+  --bs-btn-hover-bg: rgba(38, 54, 109, .06);
+  --bs-btn-hover-border-color: var(--marca-navy);
+  --bs-btn-active-bg: rgba(38, 54, 109, .1);
+  --bs-btn-active-border-color: var(--marca-navy);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.gre .btn-link { color: var(--gre-enlace); }
+
+/* --- Superficies de datos ---------------------------------------------------
+   "Secciones de datos sobre fondo azul marino, con numeros grandes en verde
+   menta." Es justo lo que son la barra del total y el panel de totales: el
+   dato que se mira antes de confirmar. */
+.gre-barra {
+  background: var(--marca-navy);
+  border-top: 0;
+  box-shadow: 0 -4px 16px rgba(18, 22, 37, .18);
+}
+
+@supports (backdrop-filter: blur(8px)) {
+  .gre-barra { backdrop-filter: none; }
+}
+
+.gre-barra-total span { color: var(--marca-gris-lavanda); }
+
+.gre-barra-total strong {
+  color: var(--marca-menta);
+  font-size: 1.5rem;
+  letter-spacing: -.02em;
+}
+
+/* Sobre el marino el secundario si va en blanco, como dice la regla. */
+.gre-barra .btn-outline-secondary,
+.gre-barra .btn-outline-primary {
+  --bs-btn-color: var(--marca-blanco);
+  --bs-btn-border-color: var(--marca-gris-borde);
+  --bs-btn-hover-color: var(--marca-blanco);
+  --bs-btn-hover-bg: rgba(255, 255, 255, .1);
+  --bs-btn-hover-border-color: var(--marca-gris-lavanda);
+}
+
+.gre-totales {
+  background: var(--marca-navy);
+  border: 0;
+  border-radius: var(--gre-radio);
+  padding: .875rem;
+}
+
+.gre-totales .form-label { color: var(--marca-gris-lavanda); }
+
+.gre-totales .form-control {
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .14);
+  color: var(--marca-blanco);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.gre-total-final .form-control {
+  background: rgba(58, 194, 156, .16);
+  border-color: rgba(58, 194, 156, .5);
+  color: var(--marca-menta);
+  font-size: 1rem;
+}
+
+/* --- Acentos pequenos ------------------------------------------------------- */
+.gre-paso {
+  background: var(--marca-navy);
+  color: var(--marca-menta);
+}
+
+.gre-titulo .gre-etiqueta,
+.gre-cabecera .gre-cuenta {
+  background: var(--gre-acento-suave);
+  color: var(--marca-menta-texto);
+}
+
+.gre-orden .gre-orden-flecha.activa { color: var(--marca-menta-texto); }
+
+/* --- Estados ----------------------------------------------------------------
+   Menta para lo aceptado y azul soporte para lo que sigue en curso, los dos de
+   la paleta. El rojo NO esta en la paleta, pero un estado de rechazo tiene que
+   leerse como rechazo: se usa un rojo apagado que convive con el marino sin
+   gritar. */
+.gre-estado-1 { background: rgba(38, 54, 109, .08);  color: var(--marca-navy); }
+.gre-estado-2 { background: rgba(58, 194, 156, .16); color: var(--marca-menta-texto); }
+.gre-estado-3 { background: #FBECEA;                 color: #A3251C; }
+.gre-estado-4 { background: rgba(44, 110, 170, .12); color: #1F5580; }
+
+/* --- Foco -------------------------------------------------------------------
+   El anillo pasa a menta: es el acento de la marca y se distingue del marino
+   del texto, que es justo lo que tiene que hacer un foco. */
+.gre .form-control:focus,
+.gre .form-select:focus {
+  border-color: var(--marca-menta);
+  box-shadow: 0 0 0 3px var(--gre-anillo);
+}
+
+.gre .form-check-input:checked {
+  background-color: var(--marca-menta);
+  border-color: var(--marca-menta);
+}
+
+.gre ::selection { background: var(--gre-acento-suave); color: var(--marca-navy); }
+.gre input, .gre select, .gre textarea { caret-color: var(--marca-menta); }
+
+/* Accion institucional: marino solido. El menta se reserva para UNA accion por
+   pantalla -la principal-; con dos botones menta compitiendo el acento deja de
+   señalar nada y se rompe la proporcion 60/30/10. */
+.gre .btn-secondary {
+  --bs-btn-bg: var(--marca-navy);
+  --bs-btn-border-color: var(--marca-navy);
+  --bs-btn-color: var(--marca-blanco);
+  --bs-btn-hover-bg: #1E2B58;
+  --bs-btn-hover-border-color: #1E2B58;
+  --bs-btn-hover-color: var(--marca-blanco);
+  --bs-btn-active-bg: #182347;
+  --bs-btn-active-border-color: #182347;
+  --bs-btn-disabled-bg: #8790B2;
+  --bs-btn-disabled-border-color: #8790B2;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(18, 22, 37, .08);
+}
+
+/* Los campos de totales son de solo lectura, y la regla general de readonly
+   los pintaba en gris sobre el marino: la cifra clave quedaba apagada justo
+   donde tiene que resaltar. Se repite el atributo para igualar especificidad
+   en vez de recurrir a !important. */
+.gre .gre-totales .form-control[readonly] {
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .16);
+  color: var(--marca-blanco);
+}
+
+.gre .gre-total-final .form-control[readonly] {
+  background: rgba(58, 194, 156, .18);
+  border-color: rgba(58, 194, 156, .55);
+  color: var(--marca-menta);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
