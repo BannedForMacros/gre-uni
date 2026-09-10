@@ -16,6 +16,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Auth;
+use App\Domain\Shared\ValueObjects\Igv;
+use App\Http\Requests\Guia\AgregarItemRequest;
 use Illuminate\Support\Facades\DB;
 use Luecano\NumeroALetras\NumeroALetras;
 use Illuminate\Support\Str;
@@ -211,137 +213,63 @@ class GuiaIngresoController extends Controller
         return response()->json(['options' => $options]);
     }
 
-public function agregarItem(Request $request)
+public function agregarItem(AgregarItemRequest $request)
     {
-        $tipo_igv = (int) ($request->post('tipo_igv') ?? 0);
-        $producto_id = $request->post('producto_id');
-        $codigo_barra = $request->post('codigo_barra');
-        $cod_plu = $request->post('cod_plu');
-        $descripcion = $request->post('descripcion');
-        $precio_publico = $request->post('precio_publico');
-        $precio_sin_igv = $request->post('precio_sin_igv');
-        $peso = $request->post('peso') ?? 0;
-        $cod_unidad = $request->post('cod_unidad') ?? 9;
-        $desc_unidad_medida = $request->post('desc_unidad_medida') ?? '';
-        $sigla_umfe = $request->post('sigla_umfe') ?? '';
-        
-        // Obtenemos el costo raw (sin formato de miles) para cálculos
-        $costo_raw = $request->post('costo_articulo'); 
-        $costo_articulo = number_format((float)$costo_raw, 2, '.', '') ?? 0.00;
+        // Antes este metodo devolvia 40 lineas de HTML concatenado, con los
+        // atributos entre comillas simples. Una descripcion con apostrofe
+        // ("L'OREAL") truncaba la fila y el articulo perdia su descripcion sin
+        // ningun aviso. Ahora devuelve datos; el HTML lo arma la vista.
+        $datos = $request->validated();
 
-        // --- NUEVO: Capturar el precio visual (Costo) enviado por JS ---
-        $precio_visual = $request->post('precio_visual');
+        $yaEnDetalle = collect(json_decode($request->input('items', '[]')) ?: [])
+            ->contains(function ($item) use ($datos) {
+                $cod = $item->codArticulo ?? $item->producto_id ?? null;
+                return (string) $cod === (string) $datos['producto_id'];
+            });
 
-        // Lógica de respaldo: Si por alguna razón no llega precio_visual, tratamos de usar el costo
-        if (empty($precio_visual)) {
-             if ($costo_raw > 0) {
-                 $precio_visual = $costo_raw;
-             } else {
-                 $precio_visual = $precio_publico;
-             }
-        }
-        // ---------------------------------------------------------------
-        $costo_sin_igv = (float) $precio_visual;
-        $costo_sin_igv = round($costo_sin_igv, 2);
-
-        $costo_con_igv = round($costo_sin_igv * 1.18, 2);
-
-        $cantidad = 1;
-        $base_clalculo = $request->post('base_calculo');
-
-        $items = json_decode($request->post('items'));
-
-        $procede = true;
-        $msj = "Datos obtenidos";
-        $msj_tipo = "success";
-        $log = "";
-        $tr = "";
-
-        if (count($items) > 0) {
-            foreach ($items as $item) {
-                if ($procede == true) {
-                    if ($item->producto_id == $producto_id) {
-                        $procede = false;
-                        $msj = "<b>No puede repetir el producto</b>";
-                        $msj_tipo = "error";
-                    }
-                }
-            }
+        if ($yaEnDetalle) {
+            return response()->json([
+                'procede'  => false,
+                'msj'      => 'Ese articulo ya esta en el detalle.',
+                'msj_tipo' => 'error',
+            ], 422);
         }
 
-        if ($procede == true) {
+        // Se conserva la regla previa: precio_visual, y si no llega se cae al
+        // costo del articulo y luego al precio publico.
+        $precioBase = (float) ($datos['precio_visual']
+            ?? $datos['costo_articulo']
+            ?? $datos['precio_publico']
+            ?? 0);
 
-            $unidad = $desc_unidad_medida;
-            $inputCantidad = "<input type='number' class='form-control form-control-sm input_cantidad_tr' name='cantidad' value='{$cantidad}'></input>";
-            $inputPorcentajeDescuento = "<input class='form-control form-control-sm input_porcentaje_descuento_tr' name='porcentaje_descuento' value='0'></input>";
-            $inputDescuento = "<input type='hidden' name='monto_descuento' value='0'></input>";
-            
-            // --- ACTUALIZACIÓN DE CÁLCULO USANDO EL COSTO (PRECIO VISUAL) ---
-            
-            // Usamos el precio visual (Costo) como base
-            $span_precio = $precio_visual;
-            
-            // Calculamos el importe con el precio visual
-            $importe = round(($cantidad * $span_precio), 2);
+        $igv     = Igv::vigente();
+        $tipoIgv = (int) ($datos['tipo_igv'] ?? 1);
 
-            /* NOTA: Comenté esta sección porque para Guía de Ingreso (Compras) 
-               generalmente queremos ver el Costo Directo ($precio_visual), 
-               no el precio de venta sin IGV.
-               Si necesitas reactivarlo, asegúrate de que no sobrescriba tu costo.
-            */
-            // if ($base_clalculo == 1) {
-            //    $span_precio = $precio_sin_igv;
-            //    $importe = $cantidad * $precio_sin_igv;
-            // }
-
-            // Formateamos para visualización limpia
-            // $span_precio = number_format($span_precio, 2); // Opcional, si quieres ver comas
-
-            $tr = "
-                <tr
-                    data-tipo_igv='{$tipo_igv}'
-
-                    data-producto_id = '{$producto_id}'
-                    
-                    data-precio_unitario = '{$span_precio}' 
-                    
-                    data-precio_publico = '{$precio_publico}'
-                    data-precio_sin_igv='{$precio_sin_igv}'
-                    data-descripcion = '{$descripcion}'
-                    data-codigo = '{$cod_plu}'
-                    data-peso = '{$peso}'
-                    data-codigo_barra='{$codigo_barra}'
-                    data-cod_unidad = '{$cod_unidad}'
-                    data-desc_unidad_medida = '{$desc_unidad_medida}'
-                    data-sigla_umfe = '{$sigla_umfe}'
-                    data-costo_articulo = '{$costo_articulo}'
-                    data-costo_con_igv = '{$costo_con_igv}'
-                    data-costo_sin_igv = '{$costo_sin_igv}'
-                >
-                    <td class='align-middle'>{$codigo_barra}</td>
-                    <td class='align-middle'>{$producto_id}</td>
-                    <td class='align-middle'>{$cod_plu}</td>
-                    <td class='align-middle'>{$descripcion}</td>
-                    
-                    <td class='align-middle'><span name='span_precio'>{$span_precio}</span></td>
-                    
-                    <td class='align-middle'>{$inputCantidad}</td>
-                    <td class='align-middle'>{$unidad}</td>
-                    
-                    <td class='align-middle'><span name='span_importe'>{$importe}</span></td>
-                    
-                    <td class='align-middle'>{$inputPorcentajeDescuento} {$inputDescuento}</td>
-                    <td class='align-middle' style='text-align:center'>
-                        <input class='bonificacion' type='checkbox' name='bonificacion' >
-                    </td>
-                    <td class='align-middle text-center'>
-                        <button class='btn btn-danger btn-sm delete_item'><i class='fa fa-times-circle'></i></button>
-                    </td>
-                </tr>
-            ";
-        }
-
-        return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'tr' => $tr]);
+        return response()->json([
+            'procede'  => true,
+            'msj'      => 'Articulo agregado',
+            'msj_tipo' => 'success',
+            'linea'    => [
+                'codArticulo'         => $datos['producto_id'],
+                'codigoBarra'         => $datos['codigo_barra'] ?? '',
+                'codPlu'              => $datos['cod_plu'] ?? '',
+                'descripcion'         => $datos['descripcion'],
+                'cantidad'            => 1,
+                'precioSinIgv'        => round($precioBase, 2),
+                'precioPublico'       => (float) ($datos['precio_publico'] ?? 0),
+                'costoArticulo'       => round((float) ($datos['costo_articulo'] ?? 0), 2),
+                'peso'                => (float) ($datos['peso'] ?? 0),
+                'codUnidad'           => (int) ($datos['cod_unidad'] ?? 9),
+                'descUnidadMedida'    => $datos['desc_unidad_medida'] ?? '',
+                'siglaUmfe'           => $datos['sigla_umfe'] ?? '',
+                'tipoIgv'             => $tipoIgv,
+                'afectoIgv'           => $tipoIgv === 1,
+                'porcentajeDescuento' => 0,
+                'bonificacion'        => false,
+                'esConsignado'        => false,
+            ],
+            'igv' => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
+        ]);
     }
 
     public function listarProveedores(Request $request)
@@ -1400,65 +1328,41 @@ public function storeDataMart(Request $request)
 
     public function cargarOtraGuia(Request $request)
     {
+        // Segunda copia del mismo constructor de <tr>, con el mismo bug del
+        // apostrofe. Ahora devuelve las lineas como datos, en el mismo formato
+        // que agregarItem, para que la vista las pinte igual.
         $id = $request->post('id');
 
         $detalle = GuiaIngresoDetalle::where('guia_ingreso_id', $id)->get();
-        // dd($detalle);
+        $igv     = Igv::vigente();
 
-        $tabla = "";
-        $base_clalculo = $request->post('base_calculo');
+        $lineas = $detalle->map(function ($item) {
+            return [
+                'codArticulo'         => $item->codarticulo,
+                'codigoBarra'         => $item->codigo_barra ?? '',
+                'codPlu'              => $item->codarticulo,
+                'descripcion'         => $item->descripcion,
+                'cantidad'            => (float) $item->cantidad,
+                'precioSinIgv'        => (float) $item->precio,
+                'precioPublico'       => (float) ($item->precio_publico ?? 0),
+                'costoArticulo'       => (float) ($item->costo_articulo ?? 0),
+                'peso'                => (float) ($item->peso_unitario ?? 0),
+                'codUnidad'           => (int) ($item->cod_unidad ?? 9),
+                'descUnidadMedida'    => $item->desc_unidad_medida ?? '',
+                'siglaUmfe'           => $item->sigla_umfe ?? '',
+                'tipoIgv'             => 1,
+                'afectoIgv'           => true,
+                'porcentajeDescuento' => (float) ($item->porcentaje_descuento ?? 0),
+                'bonificacion'        => (bool) ($item->bonificacion ?? false),
+                'esConsignado'        => (bool) ($item->es_consignado ?? false),
+            ];
+        })->values();
 
-        foreach ($detalle as $item) {
-            $peso = $item->peso_unitario;
-            
-            $unidad = "UNI";
-            $inputCantidad = "<input type='number' class='form-control form-control-sm input_cantidad_tr' name='cantidad' value='{$item->cantidad}'></input>";
-            $inputPorcentajeDescuento = "<input class='form-control form-control-sm input_porcentaje_descuento_tr' name='porcentaje_descuento' value='{$item->porcentaje_descuento}'></input>";
-            $inputDescuento = "<input type='hidden' name='monto_descuento' value='{$item->monto_descuento}'></input>";
-            $importe = $item->cantidad * $item->precio_publico;
-            $span_precio = $item->precio_publico;
-
-            if ($base_clalculo == 1) {
-                $span_precio = $item->precio_sin_igv;
-                $importe = $item->cantidad * $item->precio_sin_igv;
-            }
-
-
-            $tabla = "
-                <tr
-                    data-producto_id = '{$item->codarticulo}'
-                    data-precio_unitario = {$item->precio}
-                    data-precio_publico = {$item->precio_publico}
-                    data-precio_sin_igv='{$item->precio_sin_igv}'
-                    data-descripcion = '{$item->descripcion}'
-                    data-codigo = '{$item->codarticulo}'
-                    data-peso = '{$peso}'
-                    data-codigo_barra='{$item->codigo_barra}'
-                    data-cod_unidad = '{$item->cod_unidad}'
-                    data-desc_unidad_medida = '{$item->desc_unidad_medida}'
-                    data-sigla_umfe = '{$item->sigla_umfe}'
-                >
-                    <td class='align-middle'>{$item->codigo_barra}</td>
-                    <td class='align-middle'>{$item->codarticulo}</td>
-                    <td class='align-middle'>{$item->codarticulo}</td>
-                    <td class='align-middle'>{$item->descripcion}</td>
-                    <td class='align-middle'><span name='span_precio'>{$span_precio}</span></td>
-                    <td class='align-middle'>{$inputCantidad}</td>
-                    <td class='align-middle'>{$unidad}</td>
-                    <td class='align-middle'><span name='span_importe'>{$importe}</span></td>
-                    <td class='align-middle'>{$inputPorcentajeDescuento} {$inputDescuento}</td>
-                    <td class='align-middle' style='text-align:center'>
-                        <input class='bonificacion' type='checkbox' name='bonificacion' >
-                    </td>
-                    <td class='align-middle text-center'>
-                        <button class='btn btn-danger btn-sm delete_item'><i class='fa fa-times-circle'></i></button>
-                    </td>
-                </tr>
-            ";
-        }
-
-        return response()->json(['tabla' => $tabla]);
-
+        return response()->json([
+            'procede' => true,
+            'lineas'  => $lineas,
+            'igv'     => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
+        ]);
     }
 
     public function registrarAuditoria($registro_id, $accion_id, $tabla, $data_json, $observaciones=null)
