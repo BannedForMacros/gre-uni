@@ -6,7 +6,10 @@
 # Uso:  bash tests/js/paridad-php-js.sh
 set -e
 cd "$(dirname "$0")/../.."
-PHP="${PHP_BIN:-php}"
+# -d error_reporting=... : en PHP 8.4 las dependencias de Laravel 8 emiten
+# avisos de obsolescencia por stdout y ensucian el JSON que se compara. El
+# calculo no cambia; solo se callan los avisos para poder leer la salida.
+PHP="${PHP_BIN:-php} -d error_reporting=E_ALL&~E_DEPRECATED&~E_USER_DEPRECATED -d display_errors=stderr"
 CASOS=tests/js/casos-paridad.json
 
 $PHP -r '

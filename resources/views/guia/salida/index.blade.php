@@ -79,7 +79,7 @@
 
         <div class="row mt-3">
           <div class="col-md-12">
-            <div class="gre-scroll">
+            <div class="gre-tabla">
               <table class="table table-hover table-sm table-bordered gre-detalle">
                 <thead>
                   <tr>

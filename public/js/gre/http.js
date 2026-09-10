@@ -92,10 +92,29 @@ window.Gre = window.Gre || {};
         }
     };
 
-    Gre.avisarOk = function (mensaje) {
+    /**
+     * @param {string} mensaje
+     * @param {object} [opciones] { persistente }
+     *
+     * Un aviso que se va solo a los 1.6 s sirve para "guardado". No sirve para
+     * un envio al DataMart: el usuario mira otra cosa, el aviso desaparece y
+     * queda sin saber si la guia salio. Esas acciones piden 'persistente' y el
+     * aviso espera a que lo cierren.
+     *
+     * Sin Swal esto no hacia nada -ni un alert, como si hace avisarError-, asi
+     * que en cualquier pantalla que no lo cargue el exito era invisible.
+     */
+    Gre.avisarOk = function (mensaje, opciones) {
+        opciones = opciones || {};
+
         if (window.Swal) {
-            window.Swal.fire({ icon: 'success', title: mensaje, timer: 1600, showConfirmButton: false });
+            window.Swal.fire(opciones.persistente
+                ? { icon: 'success', title: 'Listo', text: mensaje, confirmButtonText: 'Entendido' }
+                : { icon: 'success', title: mensaje, timer: 1600, showConfirmButton: false });
+            return;
         }
+
+        if (opciones.persistente) { window.alert(mensaje); }
     };
 
 }(window.Gre, window.jQuery));

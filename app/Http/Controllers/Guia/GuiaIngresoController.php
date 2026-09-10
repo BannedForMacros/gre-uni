@@ -1125,6 +1125,26 @@ public function storeDataMart(Request $request)
         // y lo resuelve el DataMart en la misma transaccion del insert.
 
 
+        // ============================================================
+        // PASO 6: Dejar constancia local del envio
+        //
+        // Esto faltaba SOLO en ingreso -salida si lo hacia-, asi que la guia
+        // se enviaba bien y seguia marcada como no enviada: el listado ofrecia
+        // "Reenviar a DataMart" para siempre y no habia forma de distinguir la
+        // que ya salio de la que no.
+        // ============================================================
+        if ($procede == true) {
+            try {
+                $guia->enviado_datamarket = 1;
+                $guia->save();
+            } catch (Exception $e) {
+                $procede = false;
+                $msj = "Se envio a DataMarket pero fallo al actualizar el estado local.";
+                $msj_tipo = "error";
+                $log = "Error Local DB: " . $e->getMessage();
+            }
+        }
+
         if ($procede == false && $panel_origen != 'index') {
             $msj = "{$msj} <br> <button class='btn btn-success btn-sm' id='btnReintentarDataMart' data-id='{$id}' ><i class='fa-regular fa-paper-plane'></i> Reintentar</button>";
         }

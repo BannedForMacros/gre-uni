@@ -196,21 +196,24 @@ window.greGuiaListado = function (config) {
          * Antes cada accion repetia el mismo bloque: FormData, $.ajax, Swal con
          * la respuesta y recarga si procede. Eran cuatro copias por pantalla.
          */
-        _accion: function (url, guia, extra) {
+        _accion: function (url, guia, extra, opciones) {
             var self = this;
             if (!url) { return; }
 
+            opciones = opciones || {};
             var datos = window.jQuery.extend({ id: guia.id }, extra || {});
 
             this.cargando = true;
             return window.Gre.request(url, datos, { silencioso: true })
                 .done(function (resp) {
-                    window.Gre.avisarOk(self._texto(resp && resp.msj) || 'Listo');
+                    window.Gre.avisarOk(self._texto(resp && resp.msj) || 'Listo', opciones);
                     self.cargar();
                 })
                 .fail(function (err) {
-                    self.cargando = false;
+                    // Tambien se recarga al fallar: el envio pudo dejar la guia
+                    // en otro estado y la fila tiene que decir la verdad.
                     window.Gre.avisarError(err.message);
+                    self.cargar();
                 });
         },
 
@@ -246,7 +249,7 @@ window.greGuiaListado = function (config) {
                 '¿Reenviar la guía ' + guia.documento + ' al DataMart?',
                 'Sí, reenviar'
             ).done(function () {
-                self._accion(self.rutas.storeDataMart, guia, { panel_origen: 'index' });
+                self._accion(self.rutas.storeDataMart, guia, { panel_origen: 'index' }, { persistente: true });
             });
         },
 
@@ -256,7 +259,7 @@ window.greGuiaListado = function (config) {
                 '¿Reenviar la guía ' + guia.documento + ' al facturador?',
                 'Sí, reenviar'
             ).done(function () {
-                self._accion(self.rutas.facturacionElectronica, guia, { panel_origen: 'index' });
+                self._accion(self.rutas.facturacionElectronica, guia, { panel_origen: 'index' }, { persistente: true });
             });
         },
 

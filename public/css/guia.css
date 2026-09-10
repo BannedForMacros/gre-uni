@@ -111,6 +111,30 @@
 
 .gre-detalle { margin-bottom: 0; }
 
+/* --- Tabla de un listado --------------------------------------------------
+   Aqui NO se usa .gre-scroll, y es a proposito.
+
+   El listado ya pagina de 25 en 25, asi que la altura esta acotada sin
+   necesidad de un scroll propio. Y el scroll propio costaba caro: el menu de
+   acciones de cada fila es un dropdown de Bootstrap, y un ancestro con
+   overflow lo recorta y ademas hace que Popper lo voltee hacia arriba. En la
+   ultima fila el menu aparecia pegado a la PRIMERA, a media pantalla de
+   distancia del boton que lo abrio.
+
+   Sin contenedor con overflow, el thead se pega a la ventana y el menu se
+   dibuja donde corresponde. */
+.gre-tabla {
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .5rem;
+  overflow: visible;
+}
+
+.gre-tabla .gre-detalle thead th {
+  top: 0;
+  box-shadow: inset 0 -2px 0 var(--gre-borde);
+}
+
+
 .gre-detalle thead th {
   position: sticky;
   top: 0;
