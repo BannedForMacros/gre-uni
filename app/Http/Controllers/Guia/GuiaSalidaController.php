@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use App\Domain\Shared\ValueObjects\Igv;
+use App\Http\Requests\Guia\AgregarItemRequest;
 use Illuminate\Support\Facades\DB;
 use Luecano\NumeroALetras\NumeroALetras;
 use Illuminate\Support\Str;
@@ -288,17 +290,19 @@ class GuiaSalidaController extends Controller
             ->object()->cliente;
             $clienteTransferencia = $getClienteTransferencia[0];
         } catch (Exception $e) {
-            $procede = false;
-            $msj = "Ocurrio un error al obtener cliente transferencia (API)";
-            $msj_tipo = "error";
-            $log = "{$e}";
-            dd('no se pudo cargar datos cliente transferencia');
+            // Antes esto era un dd(): si el catalogo de clientes venia vacio,
+            // la pantalla entera moria mostrando texto crudo sobre fondo negro.
+            // Un catalogo ausente no debe impedir registrar una guia.
+            Log::warning('No se pudo obtener el cliente de transferencia: ' . $e->getMessage());
+            $clienteTransferencia = null;
         }
 
         // dd($clienteTransferencia);
 
 
-        return view('guia.salida.create', compact('listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listUbigeosDepartamentoPartida', 'listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo', 'validar_stock', 'clienteTransferencia'));
+        $lineasDetalle = [];
+
+        return view('guia.salida.create', compact('lineasDetalle', 'listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listUbigeosDepartamentoPartida', 'listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo', 'validar_stock', 'clienteTransferencia'));
     }
 
     public function continuar(GuiaSalida $guia)
@@ -476,7 +480,9 @@ class GuiaSalidaController extends Controller
             $verVehiculo = '';
         }
 
-        return view('guia.salida.create', compact('guia', 'detalle','listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas', 'listUbigeosDepartamentoPartida','listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
+        $lineasDetalle = $this->lineasParaVista($detalle);
+
+        return view('guia.salida.create', compact('lineasDetalle', 'guia', 'detalle','listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas', 'listUbigeosDepartamentoPartida','listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
     }
 
     public function getVendedor(Request $request)
@@ -520,11 +526,13 @@ class GuiaSalidaController extends Controller
     {
         $api_datos = Parametro::find(6)->valor;
 
-        $valor = trim($request->get('term'));
-        $tipoconsulta = $request->post('tipo');
-        $codestacion = $request->get('codestacion');
-        $codalmacen = $request->get('codalmacen');
-        $codlistaprecio = $request->get('codlistaprecio');
+        // La ruta es GET; post('tipo') siempre devolvia null, asi que el tipo
+        // de consulta nunca llegaba a la API. Mismo bug que en Guia de Ingreso.
+        $valor          = trim((string) $request->input('term', ''));
+        $tipoconsulta   = (int) $request->input('tipo_busqueda_articulo', $request->input('tipo', 1));
+        $codestacion    = $request->input('codestacion', 1);
+        $codalmacen     = $request->input('codalmacen', 1);
+        $codlistaprecio = $request->input('codlistaprecio', 1);
         // $indicar_proveedor = $request->get('indicar_proveedor');
         $indicar_proveedor = ($request->get('indicar_proveedor') == 'true') ? true : false;
         $maximo = 0;
@@ -840,110 +848,69 @@ class GuiaSalidaController extends Controller
 
 // Reemplaza tu función actual con esta en tu GuiaSalidaController.php
 
-    public function agregarItem(Request $request)
+    public function agregarItem(AgregarItemRequest $request)
     {
-        // ... (todo tu código inicial para obtener variables no cambia)
-        $api_datos = Parametro::find(6)->valor;
-        $producto_id = $request->post('producto_id');
-        $codigo_barra = $request->post('codigo_barra');
-        $cod_plu = $request->post('cod_plu');
-        $descripcion = $request->post('descripcion');
-        $precio_publico = $request->post('precio_publico');
-        $precio_sin_igv = $request->post('precio_sin_igv');
-        $peso = $request->post('peso') ?? 0;
-        $cod_unidad = $request->post('cod_unidad') ?? 9;
-        $desc_unidad_medida = $request->post('desc_unidad_medida') ?? '';
-        $sigla_umfe = $request->post('sigla_umfe') ?? '';
-        $stock = $request->post('stock') ?? 0;
-        $costo_articulo = number_format($request->post('costo_articulo'),2) ?? 0;
-        $igv = 0.18;
-        $costo_con_igv = number_format($costo_articulo * (1 + $igv), 2);
-        $cantidad = 1;
-        $base_clalculo = $request->post('base_calculo');
-        $afecto = $request->post('afecto');
-        $items = json_decode($request->post('items'));
-        $procede = true;
-        $msj = "Datos obtenidos";
-        $msj_tipo = "success";
-        $log = "";
-        $tr = "";
+        // Mismo cambio que en Guia de Ingreso: devolvia HTML concatenado con
+        // los atributos entre comillas simples, asi que una descripcion con
+        // apostrofe truncaba la fila. Ahora devuelve datos.
+        //
+        // Ademas tenia el IGV escrito a mano ($igv = 0.18) para calcular el
+        // costo con IGV, que era el septimo lugar donde vivia esa constante.
+        $datos = $request->validated();
 
-        if (count($items) > 0) {
-            foreach ($items as $item) {
-                if ($procede == true) {
-                    if ($item->producto_id == $producto_id) {
-                        $procede = false;
-                        $msj = "<b>No puede repetir el producto</b>";
-                        $msj_tipo = "error";
-                    }
-                }
-            }
+        $yaEnDetalle = collect(json_decode($request->input('items', '[]')) ?: [])
+            ->contains(function ($item) use ($datos) {
+                $cod = $item->codArticulo ?? $item->producto_id ?? null;
+                return (string) $cod === (string) $datos['producto_id'];
+            });
+
+        if ($yaEnDetalle) {
+            return response()->json([
+                'procede'  => false,
+                'msj'      => 'Ese articulo ya esta en el detalle.',
+                'msj_tipo' => 'error',
+            ], 422);
         }
 
-        if ($procede == true) {
+        $igv       = Igv::vigente();
+        $tipoIgv   = (int) ($datos['tipo_igv'] ?? 1);
+        $afectoIgv = $request->has('afecto') ? (bool) $request->input('afecto') : ($tipoIgv === 1);
 
-            $unidad = $desc_unidad_medida;
-            $inputCantidad = "<input type='number' class='form-control form-control-sm input_cantidad_tr' name='cantidad' value='{$cantidad}'></input>";
-            $celda_descuento_html = <<<HTML
-            <td class='align-middle'>
-                <input type="number" class="form-control form-control-sm valor_descuento_tr" value="0">
-            </td>
-            HTML;
-            $span_precio = $precio_publico;
-            $importe = $cantidad * $precio_publico;
-            $importe_sin_igv = $cantidad * $precio_sin_igv;
-            $span_precio_sin_igv = $precio_sin_igv;
+        // En salida el precio de referencia es el de venta, no el costo.
+        $precioBase = (float) ($datos['precio_sin_igv']
+            ?? $datos['precio_publico']
+            ?? $datos['costo_articulo']
+            ?? 0);
 
-            if ($base_clalculo == 1) {
-                $span_precio = $precio_sin_igv;
-                $importe = $cantidad * $precio_sin_igv;
-            }
+        $stock = (float) $request->input('stock', 0);
 
-            $tr = "
-            <tr
-                data-producto_id = '{$producto_id}'
-                data-precio_unitario = {$precio_publico}
-                data-precio_publico = {$precio_publico}
-                data-precio_sin_igv='{$precio_sin_igv}'
-                data-descripcion = '{$descripcion}'
-                data-codigo = '{$cod_plu}'
-                data-codigo_barra = '{$codigo_barra}'
-                data-peso = '{$peso}'
-                data-cod_unidad = '{$cod_unidad}'
-                data-desc_unidad_medida = '{$desc_unidad_medida}'
-                data-sigla_umfe = '{$sigla_umfe}'
-                data-stock = '{$stock}'
-                data-costo_articulo = '{$costo_articulo}'
-                data-costo_con_igv = '{$costo_con_igv}'
-                data-afecto = '{$afecto}'
-            >
-                <td class='align-middle'>{$codigo_barra}</td>
-                <td class='align-middle'>{$producto_id}</td>
-                <td class='align-middle'>{$cod_plu}</td>
-                <td class='align-middle'>{$descripcion}</td>
-                <td class='align-middle'>
-                    <span name='span_precio'>{$span_precio}</span>
-                    <span name='span_precio_sin_igv' hidden>{$span_precio_sin_igv}</span>
-                </td>
-                <td class='align-middle'>{$inputCantidad}</td>
-                <td class='align-middle'>{$unidad}</td>
-                <td class='align-middle'>{$stock}</td>
-                <td class='align-middle'>
-                    <span name='span_importe'>{$importe}</span>
-                    <span name='span_importe_sin_igv' hidden>{$importe_sin_igv}</span>
-                </td>
-
-                {$celda_descuento_html}
-
-                <td class='align-middle' hidden>{$costo_articulo}</td>
-                <td class='align-middle text-center'>
-                    <button class='btn btn-danger btn-sm delete_item'><i class='fa fa-times-circle'></i></button>
-                </td>
-            </tr>
-        ";
-        }
-
-        return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'tr' => $tr]);
+        return response()->json([
+            'procede'  => true,
+            'msj'      => 'Articulo agregado',
+            'msj_tipo' => 'success',
+            'linea'    => [
+                'codArticulo'         => $datos['producto_id'],
+                'codigoBarra'         => $datos['codigo_barra'] ?? '',
+                'codPlu'              => $datos['cod_plu'] ?? '',
+                'descripcion'         => $datos['descripcion'],
+                'cantidad'            => 1,
+                'precioSinIgv'        => round($precioBase, 2),
+                'precioPublico'       => (float) ($datos['precio_publico'] ?? 0),
+                'costoArticulo'       => round((float) ($datos['costo_articulo'] ?? 0), 2),
+                'peso'                => (float) ($datos['peso'] ?? 0),
+                'stock'               => $stock,
+                'codUnidad'           => (int) ($datos['cod_unidad'] ?? 9),
+                'descUnidadMedida'    => $datos['desc_unidad_medida'] ?? '',
+                'siglaUmfe'           => $datos['sigla_umfe'] ?? '',
+                'tipoIgv'             => $tipoIgv,
+                'afectoIgv'           => $afectoIgv,
+                'porcentajeDescuento' => 0,
+                'bonificacion'        => false,
+                'esConsignado'        => false,
+            ],
+            'igv'           => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
+            'validarStock'  => (Parametro::find(10)->valor ?? 'false') === 'true',
+        ]);
     }
     public function modalStore(Request $request)
     {
@@ -1120,7 +1087,7 @@ class GuiaSalidaController extends Controller
 
             } catch (Exception $e) {
                 //throw $th;
-                dd($e);
+                Log::error(__METHOD__ . ": " . $e->getMessage());
                 $procede = true;
                 $msj = "No se pudo actualizar serie de Nube";
                 $msj_tipo = "error";
@@ -1946,7 +1913,7 @@ public function storeDataMart(Request $request)
                         ])->post($api_facturacion_consultas, $bodyConsulta)->object();
                 } catch (Exception $e) {
                     //throw $th;
-                    dd('No se pudo obtener PDF');
+                    Log::warning('No se pudo obtener el PDF del comprobante: ' . $e->getMessage());
                 }
                 // dd($getPdf);
                 if ($getPdf->success == true) {
@@ -1957,7 +1924,7 @@ public function storeDataMart(Request $request)
 
                     } catch (Exception $e) {
                         //throw $th;
-                        dd($e);
+                        Log::error(__METHOD__ . ": " . $e->getMessage());
                         $procede = false;
                     }
                 }
@@ -2087,139 +2054,46 @@ public function storeDataMart(Request $request)
 
     public function cargarOtraGuia(Request $request)
     {
-        // dd($request->post());
-        $id = $request->post('id');
-        $indicar_proveedor = $request->post('indicar_proveedor');
-        $base_calculo = $request->post('base_calculo');
+        // Segunda copia del constructor de <tr>, con el mismo bug del apostrofe.
+        // Devuelve las lineas como datos, en el mismo formato que agregarItem.
+        $detalle = GuiaSalidaDetalle::where('guia_salida_id', $request->post('id'))->get();
+        $igv     = Igv::vigente();
 
+        return response()->json([
+            'procede' => true,
+            'lineas'  => $this->lineasParaVista($detalle),
+            'igv'     => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
+        ]);
+    }
 
-        $tipoconsulta = 2; //por codigo producto
-        $codestacion = 1;
-        $codalmacen = 1;
-        $codlistaprecio = 1;
-
-
-        $detalle = GuiaSalidaDetalle::where('guia_salida_id', $id)->get();
-        // dd($detalle);
-
-        $tabla = "";
-
-        $api_datos = Parametro::find(6)->valor;
-
-        foreach (($detalle ?? []) as $key => $item) {
-            // dd($item);
-            $afecto = 1;
-            $valor = $item->codarticulo;
-            $getArticulo = Http::post("{$api_datos}/ObtenerArticulo",
-                ['valor' => $valor, 'tipoconsulta' => $tipoconsulta, 'codestacion' => $codestacion, 'codalmacen' => $codalmacen, 'codlistaprecio' => $codlistaprecio]
-            )->object()->articulos;
-
-            $getArticulo = $getArticulo[0];
-
-            $detalle[$key]->stock = $getArticulo->stock ?? 0;
-
-            $precioPublico = $getArticulo->precioPublico;
-            $precioSinIGV = $getArticulo->precioSinIGV;
-            // dd($getArticulo);
-            if ($indicar_proveedor == true) {
-                // dd($precioPublico);
-                $precioSinIGV = $getArticulo->costoArticulo;
-                $precioPublico = number_format(($getArticulo->costoArticulo * (1+0.18)),2);
-                $precioPublico = number_format($precioPublico,2);
-                $precioSinIGV = number_format($precioSinIGV,2);
-            }
-
-            if ($getArticulo->tipoIgv != 1) {
-                $afecto = 0;
-
-                $precioPublico = number_format($precioSinIGV,2);
-                $precioSinIGV = number_format($precioSinIGV,2);
-
-            }
-            // dd($precioPublico);
-
-            $detalle[$key]->afecto = $afecto;
-            $detalle[$key]->precio_publico = $precioPublico;
-            $detalle[$key]->precio_sin_igv = $precioSinIGV;
-            $detalle[$key]->peso = $getArticulo->peso ?? 0;
-
-            // dd($getArticulo);
-        }
-
-        // dd($detalle);
-
-        foreach (($detalle ?? []) as $item) {
-            $peso = $item->peso_unitario;
-            $igv = 0.18; // Definir el porcentaje del IGV
-
-            $unidad = "UNI";
-
-            $inputCantidad = "<input type='number' class='form-control form-control-sm input_cantidad_tr' name='cantidad' value='{$item->cantidad}'></input>";
-
-            $inputPorcentajeDescuento = "<input class='form-control form-control-sm input_porcentaje_descuento_tr' name='porcentaje_descuento' value='{$item->porcentaje_descuento}'></input>";
-
-            $inputDescuento = "<input type='hidden' name='monto_descuento' value='{$item->monto_descuento}'></input>";
-
-            $stock = 0;
-            $costo_articulo = $item->costo_articulo ?? 0;
-            $costo_con_igv = number_format($costo_articulo * (1 + $igv), 2);
-
-            $importe_sin_igv = $item->cantidad * $item->precio_sin_igv;
-            $span_precio_sin_igv = $item->precio_sin_igv;
-            $span_precio = $item->precio_publico;
-            $importe = $item->cantidad * $item->precio_publico;
-
-            if ($base_calculo == 1) {
-                $span_precio = $item->precio_sin_igv;
-                $importe = $item->cantidad * $item->precio_sin_igv;
-            }
-
-
-            $tabla .= "
-                <tr
-                    data-producto_id = '{$item->codarticulo}'
-                    data-precio_unitario = {$item->precio_publico}
-                    data-precio_publico = {$item->precio_publico}
-                    data-precio_sin_igv='{$item->precio_sin_igv}'
-                    data-descripcion = '{$item->descripcion}'
-                    data-codigo = '{$item->codarticulo}'
-                    data-codigo_barra = '{$item->codigo_barra}'
-                    data-peso = '{$peso}'
-                    data-cod_unidad = '{$item->cod_unidad}'
-                    data-desc_unidad_medida = '{$item->desc_unidad_medida}'
-                    data-sigla_umfe = '{$item->sigla_umfe}'
-                    data-stock = '{$stock}'
-                    data-costo_articulo = '{$costo_articulo}'
-                    data-costo_con_igv = '{$costo_con_igv}'
-                    data-afecto = '{$item->afecto}'
-
-                >
-                    <td class='align-middle'>{$item->codigo_barra}</td>
-                    <td class='align-middle'>{$item->codarticulo}</td>
-                    <td class='align-middle'>{$item->codarticulo}</td>
-                    <td class='align-middle'>{$item->descripcion}</td>
-                    <td class='align-middle'>
-                        <span name='span_precio'>{$span_precio}</span>
-                        <span name='span_precio_sin_igv' hidden>{$span_precio_sin_igv}</span>
-                    </td>
-                    <td class='align-middle'>{$inputCantidad}</td>
-                    <td class='align-middle'>{$unidad}</td>
-                    <td class='align-middle'>{$stock}</td>
-                    <td class='align-middle'>
-                        <span name='span_importe'>{$importe}</span>
-                        <span name='span_importe_sin_igv' hidden>{$importe_sin_igv}</span>
-                    </td>
-                    <td class='align-middle'>{$inputPorcentajeDescuento} {$inputDescuento}</td>
-                    <td class='align-middle' hidden>{$costo_articulo}</td>
-                    <td class='align-middle text-center'>
-                        <button class='btn btn-danger btn-sm delete_item'><i class='fa fa-times-circle'></i></button>
-                    </td>
-                </tr>
-            ";
-
-        }
-
-        return response()->json(['tabla' => $tabla]);
+    /**
+     * Convierte el detalle guardado al formato que consume el componente.
+     * Un solo mapeo, compartido por continuar() y cargarOtraGuia().
+     */
+    private function lineasParaVista($detalle): array
+    {
+        return collect($detalle)->map(function ($item) {
+            return [
+                'codArticulo'         => $item->codarticulo,
+                'codigoBarra'         => $item->codigo_barra ?? '',
+                'codPlu'              => $item->codarticulo,
+                'descripcion'         => $item->descripcion,
+                'cantidad'            => (float) $item->cantidad,
+                'precioSinIgv'        => (float) $item->precio,
+                'precioPublico'       => (float) ($item->precio_publico ?? 0),
+                'costoArticulo'       => (float) ($item->costo_articulo ?? 0),
+                'peso'                => (float) ($item->peso_unitario ?? 0),
+                'stock'               => 0,
+                'codUnidad'           => (int) ($item->cod_unidad ?? 9),
+                'descUnidadMedida'    => $item->desc_unidad_medida ?? '',
+                'siglaUmfe'           => $item->sigla_umfe ?? '',
+                'tipoIgv'             => 1,
+                'afectoIgv'           => true,
+                'porcentajeDescuento' => (float) ($item->porcentaje_descuento ?? 0),
+                'bonificacion'        => false,
+                'esConsignado'        => (bool) ($item->es_consignado ?? false),
+            ];
+        })->values()->all();
     }
 
     public function registrarAuditoria($registro_id, $accion_id, $tabla, $data_json, $observaciones=null)
@@ -2277,7 +2151,7 @@ public function storeDataMart(Request $request)
             // dd($response->exito);
         } catch (Exception $e) {
             //throw $th;
-            dd($e);
+            Log::error(__METHOD__ . ": " . $e->getMessage());
             $procede = false;
             $msj = "Error al obtener mes abierto";
             $log = "{$e}";

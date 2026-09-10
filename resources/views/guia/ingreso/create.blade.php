@@ -536,7 +536,7 @@
     <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
     <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/gre/guia-ingreso.js?v=') }}{{ rand() }}"></script>
+    <script src="{{ asset('js/gre/guia-form.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/create.js?v=') }}{{ rand() }}"></script>
 
   @endpush

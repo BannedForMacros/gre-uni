@@ -374,3 +374,25 @@
   color: var(--gre-texto-tenue);
   text-align: center;
 }
+
+/* --- Stock insuficiente (solo salidas) --------------------------------------
+   Se avisa, no se bloquea: el almacenero suele saber de stock que el DataMart
+   todavia no refleja, y frenar la carga por eso detiene el despacho. */
+.gre-detalle tr.gre-sin-stock { background: #fff8e6; }
+
+.gre-alerta-stock { color: var(--gre-alerta); margin-left: .3rem; }
+
+.gre-aviso-stock {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .75rem;
+  padding: .5rem .75rem;
+  background: #fff8e6;
+  border: 1px solid #f3d9a4;
+  border-radius: .4rem;
+  font-size: .85rem;
+  color: #6b4e12;
+}
+
+.gre-aviso-stock i { color: var(--gre-alerta); }

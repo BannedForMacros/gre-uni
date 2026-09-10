@@ -1,5 +1,5 @@
 /**
- * Guía de Ingreso — pantalla completa.
+ * Formulario de guía — Ingreso y Salida.
  *
  * Reemplaza a articulo.js, storage.js y cargar_de_guias.js, que juntos sumaban
  * 559 lineas repartidas en tres archivos que se comunicaban por el DOM: el
@@ -8,8 +8,13 @@
  *
  * Extiende greDetalleGuia() con: busqueda de articulos, borrador automatico y
  * carga desde otra guia.
+ *
+ * Ingreso y Salida comparten todo esto. Lo unico que cambia es de donde sale
+ * el precio de referencia (costo en compras, precio de venta en salidas) y si
+ * hay que vigilar el stock, y eso ya viene resuelto desde el servidor. Se
+ * parametriza con `tipo` para no tener dos copias del mismo archivo.
  */
-window.greGuiaIngreso = function (config) {
+window.greGuiaForm = function (config) {
     config = config || {};
 
     var base = window.greDetalleGuia(config);
@@ -187,10 +192,15 @@ window.greGuiaIngreso = function (config) {
                 cod_unidad:         item.cod_unidad,
                 desc_unidad_medida: item.desc_unidad_medida,
                 sigla_umfe:         item.sigla_umfe,
-                tipo_igv:           item.tipo_igv
-            }).done(function () {
+                tipo_igv:           item.tipo_igv,
+                stock:              item.stock,
+                afecto:             item.afecto
+            }).done(function (resp) {
                 self.busqueda.texto = '';
                 self.busqueda.resultados = [];
+                if (resp && typeof resp.validarStock === 'boolean') {
+                    self.validarStock = resp.validarStock;
+                }
             });
         },
 
@@ -199,8 +209,10 @@ window.greGuiaIngreso = function (config) {
         // ---------------------------------------------------------------
         borrador: { hay: false, fecha: null },
 
+        tipo: config.tipo || 'ingreso',
+
         _claveBorrador: function () {
-            return 'gre.borrador.ingreso';
+            return 'gre.borrador.' + this.tipo;
         },
 
         /**
@@ -268,6 +280,30 @@ window.greGuiaIngreso = function (config) {
         },
 
         // ---------------------------------------------------------------
+        // Stock (solo salidas)
+        // ---------------------------------------------------------------
+        validarStock: !!config.validarStock,
+
+        /**
+         * ¿Esta línea pide más de lo que hay?
+         *
+         * Se avisa, no se bloquea: el almacenero suele saber de stock que el
+         * DataMart todavía no refleja, y bloquear la carga por eso detiene el
+         * despacho. La advertencia queda visible en la fila.
+         */
+        excedeStock: function (l) {
+            if (!this.validarStock || this.tipo !== 'salida') { return false; }
+            var stock = Number(l.stock);
+            if (!isFinite(stock)) { return false; }
+            return (Number(l.cantidad) || 0) > stock;
+        },
+
+        get lineasSinStock() {
+            var self = this;
+            return this.lineas.filter(function (l) { return self.excedeStock(l); }).length;
+        },
+
+        // ---------------------------------------------------------------
         // Arranque
         // ---------------------------------------------------------------
         init: function () {
@@ -287,5 +323,20 @@ window.greGuiaIngreso = function (config) {
         }
     };
 
-    return Object.assign(base, extension);
+    // Object.assign EJECUTA los getters al copiarlos, y `get lineasSinStock`
+    // hace this.lineas.filter(...) sobre un objeto que todavia no tiene
+    // lineas: la expresion del x-data reventaba y Alpine dejaba el scope
+    // vacio, sin decir nada. defineProperties copia los descriptores, asi que
+    // los getters siguen siendo getters.
+    Object.defineProperties(base, Object.getOwnPropertyDescriptors(extension));
+    return base;
+};
+
+/** Alias por pantalla, para que la vista diga lo que es. */
+window.greGuiaIngreso = function (config) {
+    return window.greGuiaForm(Object.assign({ tipo: 'ingreso' }, config || {}));
+};
+
+window.greGuiaSalida = function (config) {
+    return window.greGuiaForm(Object.assign({ tipo: 'salida' }, config || {}));
 };

@@ -5,28 +5,52 @@ namespace Database\Seeders;
 use App\Models\Parametro;
 use Illuminate\Database\Seeder;
 
+/**
+ * Parametros de la instalacion.
+ *
+ * DOS COSAS QUE ESTABAN MAL
+ *
+ * 1. Sembraba los ids 1 al 8, pero el codigo usa hasta el 10:
+ *      Parametro::find(9)->valor   -> GuiaSalidaController::index()
+ *      Parametro::find(10)->valor  -> validar_stock
+ *    En una instalacion limpia esos find() devolvian null y la pantalla moria
+ *    con "Attempt to read property valor on null".
+ *
+ * 2. Traia la credencial de facturacion y el RUC de un cliente escritos en el
+ *    archivo. Ahora salen del .env; despues se administran desde
+ *    Configuraciones > Configuracion de Empresa.
+ */
 class ParametroSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public function run(): void
     {
-        $list = array(
-            0 => array('id' => '1', 'nombre' => 'credencial', 'valor' => env('GRE_FACTURACION_CREDENCIAL', '')),
-            1 => array('id' => '2', 'nombre' => 'ruc_entiedad', 'valor' => env('GRE_RUC', '')),
-            2 => array('id' => '3', 'nombre' => 'razon_social_entidad', 'valor' => 'Franco Supermercado E.I.R.L.'),
-            3 => array('id' => '4', 'nombre' => 'direccion_entiedad', 'valor' => env('GRE_DIRECCION', '')),
-            4 => array('id' => '5', 'nombre' => 'telefonos', 'valor' => '-'),
-            5 => array('id' => '6', 'nombre' => 'api_datos', 'valor' => env('GRE_API_URL', 'http://localhost:8181/api/v1')),
-            6 => array('id' => '7', 'nombre' => 'api_facturacion', 'valor' => env('GRE_FACTURACION_URL', '')),
-            7 => array('id' => '8', 'nombre' => 'api_facturacion_consultas', 'valor' => env('GRE_FACTURACION_CONSULTAS_URL', '')),
-        );
+        $parametros = [
+            1  => ['credencial',                       env('GRE_FACTURACION_CREDENCIAL', '')],
+            2  => ['ruc_entiedad',                     env('GRE_RUC', '')],
+            3  => ['razon_social_entidad',             env('GRE_RAZON_SOCIAL', '')],
+            4  => ['direccion_entiedad',               env('GRE_DIRECCION', '')],
+            5  => ['telefonos',                        env('GRE_TELEFONOS', '-')],
+            6  => ['api_datos',                        env('GRE_API_URL', 'http://localhost:8181/GREDMK')],
+            7  => ['api_facturacion',                  env('GRE_FACTURACION_URL', '')],
+            8  => ['api_facturacion_consultas',        env('GRE_FACTURACION_CONSULTAS_URL', '')],
+            9  => ['api_facturacion_consultar_estado', env('GRE_FACTURACION_ESTADO_URL', '')],
+            10 => ['validar_stock',                    env('GRE_VALIDAR_STOCK', 'false')],
+        ];
 
-        foreach ($list as $item) {
-            Parametro::create($item);
+        foreach ($parametros as $id => [$nombre, $valor]) {
+            // La tabla no es auto_increment: el id se asigna a mano.
+            // updateOrCreate para poder re-sembrar sin duplicar ni pisar lo que
+            // el cliente ya configuro desde la pantalla.
+            $p = Parametro::find($id);
+
+            if (! $p) {
+                $p = new Parametro();
+                $p->id     = $id;
+                $p->nombre = $nombre;
+                $p->valor  = (string) $valor;
+                $p->activo = 1;
+                $p->save();
+            }
         }
     }
 }

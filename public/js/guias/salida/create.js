@@ -6,7 +6,6 @@ $(document).ready(function () {
       placeholder: $(this).data('placeholder'),
     });
     // callListarArticulos();
-    callFormBusquedaArticulo();
     callListarClientes();
     callListarTransportistas();
     callListarProveedores();
@@ -47,10 +46,8 @@ var getSerie = function(formData){
     contentType: false,
     dataType: 'json',
     success: function(response){
-      console.log({response});
       var serie = response.getSerie;
       $('#span_numero').val(serie.nuevo_numero);
-      updateLocalStorage();
     }
   };
   $.ajax(options);
@@ -59,7 +56,6 @@ var getSerie = function(formData){
 $(document).on('change', '#envio-sunat', function(event) {
   event.preventDefault();
   /* Act on the event */
-  updateLocalStorage();
 });
 
 var callListarArticulos = () => {
@@ -221,7 +217,6 @@ $(document).on('change', '#cliente_id', function(event) {
   var direccion = data.direccion;
   $('#direccion').val(direccion);
   // console.log({option});
-  console.log({data});
 
   $('#cliente_razon_social').val(data.razon_social);
   $('#cliente_nro_documento').val(data.nro_documento);
@@ -237,7 +232,6 @@ $(document).on('change', '#transportista_id', function(event) {
   $('#transportista_ruc').val(data.ruc);
   $('#transportista_nombre').val(data.nombre);
   // console.log({option});
-  updateLocalStorage();
   callGetModalidadTraslado();
 });
 
@@ -256,7 +250,6 @@ var callBrevete = () => {
 $(document).on('click', '#btnAdd', function(event) {
   event.preventDefault();
   /* Act on the event */
-  callAgregarItem();
 
 });
 
@@ -311,95 +304,17 @@ function recalcularFila(fila) {
 // Esto hace que la función se ejecute cuando cambies la cantidad, el valor del dcto o el tipo de dcto.
 // ***** REEMPLAZA LOS EVENTOS ANTERIORES DE LA TABLA CON ESTE CÓDIGO *****
 
-// Evento unificado para cuando se edita una fila (cantidad o valor del descuento)
-$('#tbody').on('input', '.input_cantidad_tr, .valor_descuento_tr', function() {
-    const filaActual = $(this).closest('tr');
-    recalcularFila(filaActual);
-});
-
-// Evento para el control maestro en la cabecera
-$(document).on('change', 'input[name="master_discount_type"]', function() {
-    // Cuando el control maestro cambia, recalculamos TODAS las filas
-    $('#tbody tr').each(function() {
-        recalcularFila($(this));
-    });
-});
-
-// Se asegura de que los cálculos se ejecuten al cargar la página
-$(document).ready(function() {
-    setTimeout(() => {
-        $('#tbody tr').each(function() {
-            recalcularFila($(this));
-        });
-    }, 600); // Un poco más de tiempo por si acaso
-});
+// Cantidad y descuento estan enlazados con x-model: el importe de la fila y
+// los totales se recalculan solos. Ya no hace falta escuchar el <tbody> ni
+// recorrer las filas al cargar la pagina.
 
 
-var calcularTotales = () => {
-    // Se mantiene la recolección de datos que ya estaba correcta
-    var items = $('#tbody tr').map(function(i, row) {
-        return {
-            'producto_id': $(this).data('producto_id'),
-            'cantidad': $(this).find('input[name=cantidad]').val(),
-            'importe': $(this).find('span[name=span_importe]').text(), // Este es el valor clave (ya tiene descuento)
-            'monto_descuento': $(this).attr('data-monto-descuento') || 0,
-            'peso': $(this).data('peso'),
-            'afecto': $(this).data('afecto'),
-        };
-    }).get();
-
-    var total_items = items.length;
-    var peso_total = 0;
-    var total_igv = 0;
-    var total_sin_igv = 0; // Esto será nuestro "Valor Venta"
-    var monto_descuento = 0;
-    var total_cantidad = 0;
-
-    // Primer bucle: Sumamos cantidades, pesos y descuentos totales.
-    // Esto ya estaba casi bien, solo lo simplificamos.
-    $.map(items, function(element) {
-        if (element.cantidad && parseFloat(element.cantidad) > 0) {
-            total_cantidad += parseFloat(element.cantidad);
-            peso_total += (parseFloat(element.peso) * parseFloat(element.cantidad));
-            monto_descuento += parseFloat(element.monto_descuento);
-        }
-    });
-
-    // --- INICIO DE LA CORRECCIÓN PRINCIPAL ---
-    // Segundo bucle: Calculamos la base imponible (valor venta) y el IGV
-    // a partir del IMPORTE CON DESCUENTO.
-    $.map(items, function(element) {
-        if (element.cantidad && parseFloat(element.cantidad) > 0) {
-            const importe_con_descuento = parseFloat(element.importe);
-
-            // Si el producto está afecto a IGV, separamos la base del impuesto
-            if (element.afecto == 1) {
-                const valor_venta_item = importe_con_descuento / 1.18;
-                const igv_item = importe_con_descuento - valor_venta_item;
-
-                total_sin_igv += valor_venta_item;
-                total_igv += igv_item;
-            } else {
-                // Si no está afecto, el importe completo es valor venta y no hay IGV.
-                total_sin_igv += importe_con_descuento;
-            }
-        }
-    });
-    // --- FIN DE LA CORRECCIÓN PRINCIPAL ---
-
-    // El total venta ahora se calcula correctamente
-    var total_venta = total_sin_igv + total_igv;
-
-    $('#total_items').val(total_items);
-    $('#total_cantidad').val(total_cantidad.toFixed(2));
-    $('#monto_descuento').val(monto_descuento.toFixed(2));
-    $('#importe_sin_igv').val(total_sin_igv.toFixed(2)); // "Valor Venta"
-    $('#monto_igv').val(total_igv.toFixed(2));
-    $('#total_venta').val(total_venta.toFixed(2));
-    $('#peso_bruto_total').val(peso_total.toFixed(2));
-
-    updateLocalStorage();
-};
+/**
+ * Los totales los calcula el componente (public/js/gre/guia-detalle.js) y
+ * Alpine los pinta solos. Se conserva el nombre porque todavia lo llaman
+ * handlers de la cabecera que no se migraron.
+ */
+var calcularTotales = () => {};;
 
 
 
@@ -417,30 +332,7 @@ var callStore = (guardar_avance = false) => {
   var formData = new FormData(formElement);
   const esConsignadoMaster = $('#es_consignado_master').is(':checked') ? 1 : 0;
 
-  var items = $('#tbody tr').map(function(i, row) {
-    return {
-      'codarticulo' : $(this).data('producto_id'),
-      // 'codigo_producto' : $(this).find('input[name=item]').val(),
-      'precio' : $(this).find('span[name=span_precio]').text(),
-      'cantidad' : $(this).find('input[name=cantidad]').val(),
-      'importe' : $(this).find('span[name=span_importe]').text(),
-      'porcentaje_descuento' : $(this).attr('data-porcentaje-descuento') || 0,
-      'monto_descuento' : $(this).attr('data-monto-descuento') || 0,
-      'descripcion' : $(this).data('descripcion'),
-      'codigo' : $(this).data('codigo'),
-      'precio_publico' : $(this).data('precio_publico'),
-      'precio_sin_igv' : $(this).data('precio_sin_igv'),
-      'codigo_barra' : $(this).data('codigo_barra'),
-      'peso' : $(this).data('peso'),
-      'stock' : $(this).data('stock'),
-      'cod_unidad' : $(this).data('cod_unidad'),
-      'desc_unidad_medida' : $(this).data('desc_unidad_medida'),
-      'sigla_umfe' : $(this).data('sigla_umfe'),
-      'costo_articulo' : $(this).data('costo_articulo'),
-       'es_consignado': esConsignadoMaster
-
-    };
-  }).get();
+  var items = (window.greDetalle ? window.greDetalle.detalleParaEnviar() : []);
   
   formData.append('detalle', JSON.stringify(items));
 
@@ -465,7 +357,6 @@ var callStore = (guardar_avance = false) => {
   // }
 
   var vendedor_nombre = $('#vendedor_id').find(':selected').data('vendedor_nombre');
-  console.log({vendedor_nombre});
   if (vendedor_nombre == undefined) {
     vendedor_nombre = '';
   }
@@ -565,7 +456,6 @@ var callStore = (guardar_avance = false) => {
   var procede_store = true;
 
   var msj_store = '';
-  console.log(formData.get('proveedor_nombre'));
 
   if (formData.get('guardar_avance') == 'false') {
 
@@ -689,13 +579,11 @@ var callStore = (guardar_avance = false) => {
         msj_store = `<b>El item [${element.codarticulo}] ${element.descripcion} <br>tiene un cero = ${element.cantidad}</b>`;
       }
     }
-    console.log(element.stock, element.cantidad);
 
     if (procede_store == true) {
       var validar_stock = ($('#validar_stock').val() == 'true') ? true : false
 
       if (validar_stock == true) {
-        console.log('vlidacion de stock');
 
         if (element.stock < parseInt(element.cantidad)) {
           procede_store = false;
@@ -750,7 +638,6 @@ $(document).on('change', '#proveedor_id', function(event) {
   event.preventDefault();
   /* Act on the event */
   var data_proveedor = $('#proveedor_id').select2('data')[0];
-  console.log(data_proveedor);
 
 
   $('#proveedor_nombre').val(data_proveedor.proveedor_nombre);
@@ -883,7 +770,6 @@ var callSetMotivoTraslado = () => {
   }
 
   var tipo_operacion_id = $('#tipo_operacion_id').val();
-  console.log({tipo_operacion_id});
   if (tipo_operacion_id == 12) {
     $('#div_almacen_unico').hide();
     $('#div_almacene_transferencia').show();
@@ -894,7 +780,6 @@ var callSetMotivoTraslado = () => {
     $('#indicar_proveedor').prop('disabled', true);
 
 
-    console.log('mostramos origen y destino');
   } else {
     $('#div_operaciones').removeClass("col-md-12").addClass("col-md-6");
     $('#indicar_proveedor').prop('disabled', false);
@@ -911,10 +796,8 @@ var callSetMotivoTraslado = () => {
     }
     $('#div_almacen_unico').show();
     $('#div_almacene_transferencia').hide();
-    console.log('mostramos solo un almacen');
   }
 
-  updateLocalStorage();
 }
 
 $(document).on('change', '#base_calculo', function(event) {
@@ -926,45 +809,16 @@ $(document).on('change', '#base_calculo', function(event) {
 
 });
 
+/**
+ * Mostrar precios con o sin IGV lo resuelve el componente: baseCalculo es una
+ * propiedad y precioMostrado() deriva de ella. Antes esto recorria el <tbody>
+ * reescribiendo cada <span> a mano.
+ */
 var callBaseCalculo = () => {
-  console.log('generado base calculo...');
-
-  var base_calculo = $('#base_calculo').val();
-
-  console.log({base_calculo});
-
-  $('#tbody tr').map(function(i, row) {
-    // console.log($(this).data());
-    var cantidad = $(this).find('input[name=cantidad]').val();
-    var afecto = $(this).data('afecto');
-    var precio_unitario_sin_igv = $(this).data('precio_sin_igv');
-
-    var indicar_proveedor = $('#indicar_proveedor').prop('checked');
-    console.log({indicar_proveedor});
-
-
-    if (afecto == 1) {
-      var precio_unitario = $(this).data('precio_unitario');
-      if (base_calculo == 1) {
-        var precio_unitario = $(this).data('precio_sin_igv');
-      }
-
-      $(this).find('span[name=span_precio]').html(precio_unitario);
-
-      var importe = round((parseFloat(precio_unitario) * cantidad),2);
-
-      $(this).find('span[name=span_importe]').html(importe);
-
-    }
-    var importe_sin_igv = round((parseFloat(precio_unitario_sin_igv) * cantidad),2);
-    $(this).find('span[name=span_importe_sin_igv]').html(importe_sin_igv);
-
-  })
-
-  calcularTotales();
-
-
-}
+  if (window.greDetalle) {
+    window.greDetalle.baseCalculo = parseInt($('#base_calculo').val(), 10) || 1;
+  }
+};
 
 $(document).on('click', '#btnGuardarAvance', function(event) {
   event.preventDefault();
@@ -1001,15 +855,12 @@ var callIndicarProveedor = () => {
 
   }
 
-  updateLocalStorage();
 
 }
 
 $(document).on('keypress', '#vendedor_codigo', function(event) {
   // event.preventDefault();
-  console.log('enter');
   /* Act on the event */
-  console.log(event.keyCode);
 
 });
 
@@ -1041,7 +892,6 @@ var getVendedor = function(formData){
     dataType: 'json',
     success: function(response){
       $('#vendedor_id').html(response.options);
-      updateLocalStorage();
     }
   };
   $.ajax(options);
@@ -1052,10 +902,7 @@ $('#form_store').on('keydown', function(e) {
   var tag = e.target.tagName
   var tag_id = e.target.id;
 
-  console.log({keyCode, tag});
-  console.log(e.target.id);
   if (keyCode === 13 && tag_id !=="vendedor_codigo") {
-    console.log("Enter prevented")
     e.preventDefault();
     return false;
   }else{
@@ -1109,7 +956,6 @@ var getModalidadTraslado = function(formData){
 
       }
 
-      updateLocalStorage();
     }
   };
   $.ajax(options);
@@ -1159,34 +1005,29 @@ $(document).on('change', '#pedido_interno', function(event) {
 
   // var status = $(this).prop('checked');
   // console.log({status});
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '.input_pedido_interno', function(event) {
   event.preventDefault();
   /* Act on the event */
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '#comentario', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 
 });
 
 $(document).on('change', '#es_consignado_master', function(event) {
     event.preventDefault();
     /* Act on the event */
-    updateLocalStorage();
 });
 
 var limpiarDetalle = () => {
 
-  $('#tbody').html('');
+  if (window.greDetalle) { window.greDetalle.limpiar(); }
 
-  updateLocalStorage();
 
   calcularTotales();
 
@@ -1196,7 +1037,6 @@ var validarDireccionProveedor = () => {
 
   var indicar_proveedor = $('#indicar_proveedor').prop('checked');
 
-  console.log({indicar_proveedor});
   var proveedor_id = $('#proveedor_id').val();
 
   if (indicar_proveedor == true) {

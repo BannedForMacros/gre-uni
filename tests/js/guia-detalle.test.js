@@ -103,5 +103,31 @@ c.baseCalculo = 2;
 eq(c.importeMostrado(c.lineas[0]), 45.9, 'con IGV incluido tambien descuenta');
 eq(c.valorVenta, 38.9, 'y el total no cambia al cambiar la vista');
 
+
+
+// --- guia-form.js: composicion de los dos componentes ---
+require('../../public/js/gre/guia-form.js');
+
+console.log('\n--- composicion ingreso/salida ---');
+var s = window.greGuiaSalida({ lineas: [], tasaIgv: 0.18, validarStock: true, rutas: {} });
+eq(s.tipo, 'salida', 'greGuiaSalida marca tipo salida');
+eq(typeof s.buscar, 'function', 'hereda buscar()');
+eq(typeof s.valorVenta, 'number', 'hereda los getters del detalle');
+
+console.log('\n--- los getters sobreviven a la composicion ---');
+// Object.assign los ejecutaba al copiar y reventaba el x-data entero.
+s.lineas.push(linea({ cantidad: 5, precioSinIgv: 10, stock: 2 }));
+s.lineas.push(linea({ cantidad: 1, precioSinIgv: 10, stock: 99 }));
+eq(s.lineasSinStock, 1, 'lineasSinStock cuenta solo la que excede');
+assert(s.excedeStock(s.lineas[0]) === true,  'detecta stock insuficiente');
+assert(s.excedeStock(s.lineas[1]) === false, 'no marca la que alcanza');
+
+console.log('\n--- ingreso ignora el stock ---');
+var g = window.greGuiaIngreso({ lineas: [], rutas: {} });
+eq(g.tipo, 'ingreso', 'greGuiaIngreso marca tipo ingreso');
+assert(g.excedeStock({ cantidad: 9, stock: 1 }) === false, 'en compras el stock no aplica');
+eq(g._claveBorrador(), 'gre.borrador.ingreso', 'borrador separado por pantalla');
+eq(s._claveBorrador(), 'gre.borrador.salida',  'y no se pisan entre si');
+
 console.log('\n' + (fallos === 0 ? 'OK (' + total + ' pruebas)' : fallos + ' de ' + total + ' FALLARON'));
 process.exit(fallos === 0 ? 0 : 1);

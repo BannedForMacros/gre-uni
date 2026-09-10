@@ -573,7 +573,7 @@ public function buscarArticuloBarra(Request $request)
                     }
                 } catch (Exception $e) {
                     //throw $th;
-                    dd($e);
+                    Log::error(__METHOD__ . ": " . $e->getMessage());
                     $procede = false;
                     $msj = "No se pudo registrar remotamente";
                     $msj_tipo = "error";
@@ -595,7 +595,7 @@ public function buscarArticuloBarra(Request $request)
                 $guia = GuiaIngreso::create($datos);
             } catch (Exception $e) {
                 //throw $th;
-                dd($e);
+                Log::error(__METHOD__ . ": " . $e->getMessage());
                 $procede = false;
                 $msj = "No se pudo registrar la Guia de Salida";
                 $msj_tipo = "error";
@@ -626,7 +626,7 @@ public function buscarArticuloBarra(Request $request)
                         $guiaDetalle->save();
                     } catch (Exception $e) {
                         //throw $th;
-                        dd($e);
+                        Log::error(__METHOD__ . ": " . $e->getMessage());
                         $procede = false;
                         $msj = "No se pudo registrar el detalle";
                         $msj_tipo = "error";
@@ -754,7 +754,7 @@ public function buscarArticuloBarra(Request $request)
                     
                 } catch (Exception $e) {
                     //throw $th;
-                    dd($e);
+                    Log::error(__METHOD__ . ": " . $e->getMessage());
                     $procede = true;
                     $msj = "No se pudo actualizar serie de Nube";
                     $msj_tipo = "error";
