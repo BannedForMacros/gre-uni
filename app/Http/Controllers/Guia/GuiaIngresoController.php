@@ -321,21 +321,38 @@ public function agregarItem(AgregarItemRequest $request)
     {
         $api_datos = Parametro::find(6)->valor;
 
-        $valor = trim($request->get('term'));
-        $tipoconsulta = $request->post('tipo');
-        $codestacion = $request->get('codestacion');
-        $codalmacen = $request->get('codalmacen');
-        $codlistaprecio = $request->get('codlistaprecio');
-        $maximo = 0;
-        if ($tipoconsulta == 4) {
-            $maximo = 2;
-        }
+        // La ruta es GET, pero esto leia $request->post('tipo'), que en un GET
+        // siempre es null. El tipo de consulta nunca llegaba a la API y la
+        // busqueda por nombre no devolvia nada. input() lee query y body.
+        $valor          = trim((string) $request->input('term', ''));
+        $tipoconsulta   = (int) $request->input('tipo_busqueda_articulo', $request->input('tipo', 1));
+        $codestacion    = $request->input('codestacion', 1);
+        $codalmacen     = $request->input('codalmacen', 1);
+        $codlistaprecio = $request->input('codlistaprecio', 1);
+
+        // Por codigo de barras basta con pocos caracteres; por nombre se exige
+        // algo mas para no traer media base en cada tecla.
+        $maximo = ($tipoconsulta === 4) ? 2 : 0;
         // dd($request->all());
+        $listArticulos = [];
+
         if (strlen($valor) > $maximo) {
-            $listArticulos = Http::post("{$api_datos}/ObtenerArticulo", 
-                ['valor' => $valor, 'tipoconsulta' => $tipoconsulta, 'codestacion' => $codestacion, 'codalmacen' => $codalmacen, 'codlistaprecio' => $codlistaprecio]
-            )->object()->articulos;
-            
+            try {
+                $listArticulos = Http::post("{$api_datos}/ObtenerArticulo", [
+                    'valor'          => $valor,
+                    'tipoconsulta'   => $tipoconsulta,
+                    'codestacion'    => $codestacion,
+                    'codalmacen'     => $codalmacen,
+                    'codlistaprecio' => $codlistaprecio,
+                ])->object()->articulos ?? [];
+            } catch (Exception $e) {
+                // Antes una caida de la ApiGRE dejaba $listArticulos sin
+                // definir y el foreach de abajo reventaba con un 500.
+                return response()->json([
+                    'items' => [],
+                    'error' => 'No se pudo consultar el catalogo de articulos.',
+                ], 502);
+            }
         }
 
         // dd($listArticulos);

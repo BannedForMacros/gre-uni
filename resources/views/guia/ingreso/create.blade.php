@@ -251,12 +251,13 @@
              El estado (lineas + tasa de IGV) vive aqui, no en atributos data-*
              de cada <tr> como antes. Los totales se derivan solos.
              ------------------------------------------------------------------ --}}
-        <div x-data="greDetalleGuia({
+        <div x-data="greGuiaIngreso({
                 lineas: {{ Js::from($lineasDetalle ?? []) }},
                 tasaIgv: {{ config('gre.igv.tasa', 0.18) }},
                 rutas: {
                     agregarItem:    '{{ route('guiaingreso.agregarItem') }}',
-                    cargarOtraGuia: '{{ route('guiaingreso.cargarOtraGuia') }}'
+                    cargarOtraGuia:  '{{ route('guiaingreso.cargarOtraGuia') }}',
+                    listarArticulos: '{{ route('guiaingreso.listarArticulos') }}'
                 }
              })"
              x-cloak>
@@ -272,42 +273,72 @@
 
           </div>
           <div class="col-md-12">
-            <div class="gre-buscador mb-3">
-            <label class="form-label" for="producto_valor">
-              Buscar artículo
-              <span class="gre-atajo">escanee el código de barras o escriba el nombre · <kbd>Enter</kbd> para agregar</span>
-            </label>
+            {{-- Aviso de borrador: reemplaza al modal bloqueante que saltaba en
+                 cada carga de pagina preguntando si cargar los datos sin grabar. --}}
+            <div class="gre-borrador" x-show="borrador.hay" x-cloak>
+              <i class="fa fa-clock-rotate-left"></i>
+              <span>
+                Hay un detalle sin guardar de <strong x-text="borradorRelativo()"></strong>.
+              </span>
+              <button type="button" class="btn btn-sm btn-primary" @click="restaurarBorrador()">Restaurar</button>
+              <button type="button" class="btn btn-sm btn-link" @click="descartarBorrador()">Descartar</button>
+            </div>
 
-            <form name="form_buscar_articulo" id="form_buscar_articulo">
-              @csrf
-              <div class="row">
-                <div class="col-md-2">
-                  <select class="form-select" id="tipo_busqueda_articulo">
-                    <option value="1">Codigo Barras</option>
-                    <option value="2">Codigo Articulo</option>
-                    <option value="3">Codigo Interno</option>
-                    <option value="4">Descripcion</option>
+            <div class="gre-buscador mb-3">
+              <label class="form-label" for="producto_valor">
+                Buscar artículo
+                <span class="gre-atajo">
+                  escanee el código de barras o escriba el nombre ·
+                  <kbd>↑</kbd><kbd>↓</kbd> para elegir · <kbd>Enter</kbd> para agregar
+                </span>
+              </label>
+
+              <div class="row g-2">
+                <div class="col-md-3 col-lg-2">
+                  <select class="form-select" id="tipo_busqueda_articulo"
+                          {{-- Cambiar de modo vuelve a buscar lo ya escrito, no lo borra.
+                               Borrarlo rompia el reintento automatico como codigo de
+                               barras: el fallback cambia el modo, y eso disparaba este
+                               change, que limpiaba justo lo que acababa de encontrar. --}}
+                          x-model.number="busqueda.tipo" @change="busqueda.texto ? buscar() : volverAlBuscador()">
+                    <option value="1">Código de barras</option>
+                    <option value="4">Descripción</option>
+                    <option value="2">Código artículo</option>
+                    <option value="3">Código interno</option>
                   </select>
                 </div>
-                <div class="col-md-8 mb-2" id="div_form_buscar_articulo">
-                  {{-- <select class="form-select select_2" name="producto_id" id="producto_id" style="width: 100%"
-                    data-placeholder="Buscar un articulo">
-                    @foreach ($listArticulos as $item)
-                      <option data-codigo_barra="{{ $item->CodBarra }}" data-cod_plu="{{ $item->CodPlu }}"
-                        data-descripcion="{{ $item->NombreArticulo }}" data-precio_publico="{{ $item->PrecioPublico }}"
-                        data-precio_sin_igv="{{ $item->PrecioSinIGV }}" value="{{ $item->CodArticulo }}">
-                        [{{ $item->CodPlu }}] {{ $item->NombreArticulo }}
-                      </option>
-                    @endforeach
-                  </select> --}}
-                </div>
-                <div class="col-md-2">
-                  {{-- <button class="btn btn-success btn-primary mt-1" id="btnAdd"><i class="fa fa-plus"></i>
-                    Agregar</button> --}}
+
+                <div class="col-md-9 col-lg-10 gre-combo" @click.outside="cerrarBusqueda()">
+                  <input type="text" class="form-control" id="producto_valor" autocomplete="off"
+                         :placeholder="busqueda.tipo == 1 ? 'Escanee o escriba el código de barras' : 'Escriba parte del nombre del artículo'"
+                         x-model="busqueda.texto"
+                         @input="alEscribir()"
+                         @keydown.enter.prevent="alPresionarEnter()"
+                         @keydown.arrow-down.prevent="mover(1)"
+                         @keydown.arrow-up.prevent="mover(-1)"
+                         @keydown.escape="cerrarBusqueda()">
+
+                  <span class="gre-combo-estado" x-show="busqueda.cargando" x-cloak>
+                    <i class="fa fa-circle-notch fa-spin"></i>
+                  </span>
+
+                  <div class="gre-combo-lista" x-show="busqueda.abierto" x-cloak>
+                    <div class="gre-combo-vacio" x-show="!busqueda.resultados.length" x-text="busqueda.mensaje"></div>
+
+                    <template x-for="(r, i) in busqueda.resultados" :key="r.id">
+                      <button type="button" class="gre-combo-item"
+                              :class="{ 'activo': i === busqueda.activo }"
+                              @click="elegir(r)" @mouseenter="busqueda.activo = i">
+                        <span class="gre-combo-desc" x-text="r.descripcion"></span>
+                        <span class="gre-combo-meta">
+                          <span x-text="r.codigo_barra"></span>
+                          <span class="gre-num" x-text="money(r.costo_articulo || r.precio_sin_igv)"></span>
+                        </span>
+                      </button>
+                    </template>
+                  </div>
                 </div>
               </div>
-
-            </form>
             </div>{{-- /.gre-buscador --}}
 
             <div>
@@ -505,10 +536,8 @@
     <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
     <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
+    <script src="{{ asset('js/gre/guia-ingreso.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/create.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/articulo.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/storage.js?v=') }}{{ rand() }}"></script>
-    <script src="{{ asset('js/guias/ingreso/cargar_de_guias.js?v=') }}{{ rand() }}"></script>
 
   @endpush
 </div>{{-- /.gre --}}

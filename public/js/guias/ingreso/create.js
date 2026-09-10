@@ -9,7 +9,6 @@
 
     callListarProveedores();
     callListarArticulos();
-    callFormBusquedaArticulo();
 
     calcularTotales();
     $('#base_calculo').trigger('change');
@@ -44,7 +43,6 @@ var callEsGuiaInterna = () => {
 
   }
 
-  updateLocalStorage();
 }
 
 $(document).on('change', '#serie', function(event) {
@@ -75,7 +73,6 @@ var getSerie = function(formData){
     success: function(response){
       var serie = response.getSerie;
       $('#numero').val(serie.nuevo_numero);
-      updateLocalStorage();
     }
   };
   $.ajax(options);
@@ -174,7 +171,6 @@ $(document).on('change', '#proveedor_id', function(event) {
   $('#proveedor_nombre').val(data.proveedor_nombre);
   $('#proveedor_ruc').val(data.proveedor_ruc);
 
-  updateLocalStorage();
 
 });
 
@@ -242,7 +238,6 @@ $(document).on('keyup', '.input_porcentaje_descuento_tr', function(event) {
  * bases. Eso daba un centimo de diferencia contra el calculo de PHP.
  */
 var calcularTotales = () => {
-  updateLocalStorage();
 }
 
 
@@ -568,7 +563,6 @@ $(document).on('change', '#es_consignado_master', function(event) {
     // event.preventDefault(); 
     
     /* Act on the event */
-    updateLocalStorage();
 });
 
 // El cambio de base de calculo (con/sin IGV) lo maneja el componente:
@@ -616,7 +610,6 @@ var getVendedor = function(formData){
     dataType: 'json',
     success: function(response){
       $('#vendedor_id').html(response.options);
-      updateLocalStorage();
     }
   };
   $.ajax(options);
@@ -655,7 +648,6 @@ $(document).on('keyup', '#numero', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 
 });
 
@@ -663,7 +655,6 @@ $(document).on('change', '#fecha_vencimiento', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 
 });
 
@@ -671,40 +662,34 @@ $(document).on('change', '#tipo_busqueda_proveedor', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '#condiciones', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '#pedido_numero', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '#pedido_serie', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 });
 
 $(document).on('keyup', '#comentario', function(event) {
   event.preventDefault();
   /* Act on the event */
 
-  updateLocalStorage();
 });
 
 $(document).on('click', '.radio_relacion_doc', function(event) {
   // event.preventDefault();
   /* Act on the event */
-  updateLocalStorage();
 // IMPLEMTNACION DE MEJORAS PARA EL SWEET ALER
 });

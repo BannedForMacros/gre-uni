@@ -1,73 +1,74 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Iniciar Sesion') }}</div>
+{{--
+  Pantalla de acceso.
 
-                <div class="card-body">
-                    <form method="POST" action="{{ route('login') }}">
-                        @csrf
+  La anterior era el andamio por defecto de Laravel, sin estilo y con un error
+  de accesibilidad: <label for="email"> apuntaba a un campo con id="username",
+  asi que hacer clic en la etiqueta no enfocaba nada.
+--}}
+<div class="gre gre-login">
+  <div class="gre-login-caja">
 
-                        <div class="row mb-3">
-                            <label for="email" class="col-md-4 col-form-label text-md-end">{{ __('Usuario ') }}</label>
+    @if ($logo = \App\Support\Empresa::logoUrl())
+      <img src="{{ $logo }}" alt="{{ \App\Models\Parametro::find(3)->valor ?? '' }}" class="gre-login-logo">
+    @else
+      <div class="gre-login-marca">
+        <i class="fa fa-truck-fast"></i>
+        <span>Guías de Remisión</span>
+      </div>
+    @endif
 
-                            <div class="col-md-6">
-                                <input id="username" type="text" class="form-control @error('username') is-invalid @enderror" name="username" value="{{ old('username') }}" required autocomplete="username" autofocus>
+    <h1 class="gre-login-titulo">Iniciar sesión</h1>
 
-                                @error('username')
-                                    <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                @enderror
-                            </div>
-                        </div>
+    @if ($errors->any())
+      <div class="gre-login-error" role="alert">
+        <i class="fa fa-circle-exclamation"></i>
+        <span>{{ $errors->first() }}</span>
+      </div>
+    @endif
 
-                        <div class="row mb-3">
-                            <label for="password" class="col-md-4 col-form-label text-md-end">{{ __('Password') }}</label>
+    <form method="POST" action="{{ route('login') }}" x-data="{ enviando: false }" @submit="enviando = true">
+      @csrf
 
-                            <div class="col-md-6">
-                                <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" required autocomplete="current-password">
+      <div class="mb-3">
+        <label for="username" class="form-label">Usuario</label>
+        <input id="username" name="username" type="text"
+               class="form-control @error('username') is-invalid @enderror"
+               value="{{ old('username') }}"
+               required autocomplete="username" autofocus>
+      </div>
 
-                                @error('password')
-                                    <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                @enderror
-                            </div>
-                        </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Contraseña</label>
+        <input id="password" name="password" type="password"
+               class="form-control @error('password') is-invalid @enderror"
+               required autocomplete="current-password">
+      </div>
 
-                        {{-- <div class="row mb-3">
-                            <div class="col-md-6 offset-md-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+      <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" name="remember" id="remember"
+               {{ old('remember') ? 'checked' : '' }}>
+        <label class="form-check-label" for="remember">Mantener la sesión abierta</label>
+      </div>
 
-                                    <label class="form-check-label" for="remember">
-                                        {{ __('Remember Me') }}
-                                    </label>
-                                </div>
-                            </div>
-                        </div> --}}
+      <button type="submit" class="btn btn-primary w-100" :disabled="enviando">
+        <span x-show="!enviando">Ingresar</span>
+        <span x-show="enviando" x-cloak>
+          <i class="fa fa-circle-notch fa-spin"></i> Ingresando…
+        </span>
+      </button>
+    </form>
 
-                        <div class="row mb-0">
-                            <div class="col-md-8 offset-md-4">
-                                <button type="submit" class="btn btn-primary">
-                                    {{ __('Ingresar') }}
-                                </button>
+  </div>
 
-                                @if (Route::has('password.request'))
-                                    {{-- <a class="btn btn-link" href="{{ route('password.request') }}">
-                                        {{ __('Forgot Your Password?') }}
-                                    </a> --}}
-                                @endif
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+  <p class="gre-login-pie">
+    {{ \App\Models\Parametro::find(3)->valor ?? '' }}
+  </p>
 </div>
 @endsection
+
+@push('js-scripts')
+  <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
+@endpush
