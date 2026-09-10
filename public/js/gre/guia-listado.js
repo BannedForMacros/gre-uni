@@ -33,6 +33,9 @@ window.greGuiaListado = function (config) {
         cargando: false,
         error: '',
 
+        /** Solo Salida: el estado en SUNAT se pide despues de pintar la tabla. */
+        refrescandoEstados: false,
+
         /** Filtro sobre lo ya traido, sin volver al servidor. */
         filtroRapido: '',
 
@@ -59,6 +62,7 @@ window.greGuiaListado = function (config) {
             .done(function (resp) {
                 self.guias = (resp && resp.guias) || [];
                 self.pagina = 1;
+                self.refrescarEstados();
             })
             .fail(function (err) {
                 self.guias = [];
@@ -67,6 +71,53 @@ window.greGuiaListado = function (config) {
             .always(function () {
                 self.cargando = false;
             });
+        },
+
+        /**
+         * Pide el estado en SUNAT de las guias que siguen sin respuesta.
+         *
+         * Antes esto lo hacia el propio listar(): una llamada al facturador por
+         * guia, en serie, antes de devolver una sola fila. La tabla quedaba en
+         * blanco varios segundos por un dato que no es el que el usuario esta
+         * mirando. Ahora la tabla se pinta ya y el estado se corrige solo
+         * cuando el facturador contesta; si no contesta, las filas siguen ahi
+         * con el ultimo estado conocido.
+         *
+         * Silencioso a proposito: que la consulta de estado falle no es motivo
+         * para taparle el listado al usuario con un modal de error.
+         */
+        refrescarEstados: function () {
+            var self = this;
+
+            if (!this.rutas.estadosSunat) { return; }
+
+            var ids = this.guias.filter(function (g) {
+                return g.estadoPendiente;
+            }).map(function (g) {
+                return g.id;
+            });
+
+            if (!ids.length) { return; }
+
+            this.refrescandoEstados = true;
+
+            return window.Gre.request(this.rutas.estadosSunat, { ids: ids }, { silencioso: true })
+                .done(function (resp) {
+                    var cambiadas = (resp && resp.guias) || [];
+                    if (!cambiadas.length) { return; }
+
+                    var porId = {};
+                    cambiadas.forEach(function (g) { porId[g.id] = g; });
+
+                    // Reasignar el array entero: Alpine repinta la fila y con
+                    // ella los botones, que dependen del estado.
+                    self.guias = self.guias.map(function (g) {
+                        return porId[g.id] || g;
+                    });
+                })
+                .always(function () {
+                    self.refrescandoEstados = false;
+                });
         },
 
         /**

@@ -13,6 +13,7 @@
         fechaFin:    '{{ date('Y-m-d') }}',
         rutas: {
             listar:                 '{{ route('guiasalida.listar') }}',
+            estadosSunat:           '{{ route('guiasalida.estadosSunat') }}',
             anular:                 '{{ route('guiasalida.anular') }}',
             storeDataMart:          '{{ route('guiasalida.storeDataMart') }}',
             facturacionElectronica: '{{ route('guiasalida.facturacionElectronica') }}'
@@ -75,6 +76,12 @@
 
         <div class="gre-error mt-3" x-show="error" x-cloak>
           <i class="fa fa-circle-exclamation"></i> <span x-text="error"></span>
+        </div>
+
+        {{-- El estado en SUNAT llega despues de la tabla; sin este aviso el
+             usuario no sabe que una fila puede cambiar sola. --}}
+        <div class="text-muted small mt-2" x-show="refrescandoEstados" x-cloak>
+          <i class="fa fa-circle-notch fa-spin"></i> Consultando el estado en SUNAT…
         </div>
 
         <div class="row mt-3">
