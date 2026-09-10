@@ -47,126 +47,136 @@ class GuiaSalidaController extends Controller
 
     public function listar(Request $request)
     {
-        $fechaInicio = $request->post('fecha_inicio');
-        $fechaFin = $request->post('fecha_fin');
-        $serie = $request->post('serie');
-        $numero = $request->post('numero');
+        // Igual que en Ingreso: devolvia HTML dentro de una vista parcial.
+        // Ahora devuelve datos.
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin    = $request->input('fecha_fin');
+        $serie       = $request->input('serie');
+        $numero      = $request->input('numero');
 
-        $consulta = DB::table('guia_salidas')->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])->where('activo',1);
+        $consulta = DB::table('guia_salidas')
+            ->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
+            ->where('activo', 1);
 
-        if ($serie != '') {
+        if ($serie !== null && $serie !== '') {
             $consulta = $consulta->where('serie', $serie);
         }
-        if ($numero != '') {
+        if ($numero !== null && $numero !== '') {
             $consulta = $consulta->where('numero', $numero);
         }
 
-        $list = $consulta->get();
+        $list = $consulta->orderBy('fecha_emision', 'desc')->orderBy('id', 'desc')->get();
 
-        $api_facturacion_consultar_estado = Parametro::find(9)->valor;
-        $ruc_entidad = Parametro::find(2)->valor;
+        // Una sola consulta para los estados. Antes era GuiaEstado::find()
+        // dentro del bucle, una por fila.
+        $estados = GuiaEstado::pluck('nombre', 'id');
 
-        foreach ($list as $key => $value) {
-            // dd($value);
-            if ($value->envio_id != null) {
-                $getEnvio = FacturacionEnvio::find($value->envio_id);
-                // dd($getEnvio->pdf417);
-            }
-            $list[$key]->estado_nombre = GuiaEstado::find($value->guia_estado_id)->nombre;
+        $this->refrescarEstadosSunat($list, $estados);
 
-            $texto_razon_social = $value->proveedor_nombre;
+        $guias = $list->map(function ($g) use ($estados) {
+            $razonSocial = ((int) $g->indicar_proveedor === 0)
+                ? $g->cliente_razon_social
+                : $g->proveedor_nombre;
 
-            if ($value->indicar_proveedor == 0) {
-                $texto_razon_social = $value->cliente_razon_social;
-            }
-            $list[$key]->texto_razon_social = $texto_razon_social;
-            $url_pdf = route('guiasalida.pdf', ['guia' => $value->id, 'valorada' => 0]);
-            $url_pdf_valorada = route('guiasalida.pdf', ['guia' => $value->id, 'valorada' => 1]);
+            $urlPdf = ((int) $g->envio_sunat === 1)
+                ? route('guiasalida.pdfDecode', ['guia' => $g->id])
+                : route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 0]);
 
-            if ($value->envio_sunat == 1) {
-                $url_pdf = route('guiasalida.pdfDecode', ['guia' => $value->id]);
-            }
+            $estadoId = (int) $g->guia_estado_id;
 
-            if ((int)$value->guia_estado_id === 1 && (int)$value->envio_sunat === 1) {
+            return [
+                'id'           => $g->id,
+                'documento'    => $g->serie . '-' . $g->numero,
+                'serie'        => $g->serie,
+                'numero'       => (int) $g->numero,
+                'razonSocial'  => $razonSocial,
+                'fechaEmision' => $g->fecha_emision,
+                'totalVenta'   => (float) $g->total_venta,
+                'envioSunat'   => (int) $g->envio_sunat === 1,
+                'guiaEstadoId' => $estadoId,
+                'estadoNombre' => $estados[$g->guia_estado_id] ?? '',
 
-                $serie_format = str_pad($value->serie, 3, '0', STR_PAD_LEFT);
-                $body_consultar_estado = [
-                    'rucremitente' => (string)$ruc_entidad,
-                    'serienumero'  => "T{$serie_format}-{$value->numero}",
-                ];
+                'mostrarAnular'            => in_array($estadoId, [1, 2, 3, 5], true),
+                'mostrarGuardarDatamarket' => (int) $g->enviado_datamarket !== 1,
+                'mostrarContinuar'         => $estadoId === 4,
+                'verReintentoFacturador'   => (int) $g->envio_sunat === 1
+                                              && (int) $g->enviado_facturador === 0
+                                              && $estadoId === 1,
 
-                try {
-                    $estadoSunat = Http::post($api_facturacion_consultar_estado, $body_consultar_estado)->object();
+                'urlPdf'         => $urlPdf,
+                'urlPdfValorada' => route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 1]),
+                'urlContinuar'   => route('guiasalida.continuar', ['guia' => $g->id]),
+            ];
+        })->values();
 
-                    if ($estadoSunat && property_exists($estadoSunat, 'estado') && $estadoSunat->estado !== null) {
+        return response()->json(['procede' => true, 'guias' => $guias]);
+    }
 
-                        $estadoApi = strtoupper(trim((string)$estadoSunat->estado));
-                        $nuevo_estado = null;
+    /**
+     * Actualiza desde SUNAT el estado de las guias que siguen pendientes.
+     *
+     * OJO: consulta el facturador UNA VEZ POR GUIA, en serie. Con un listado de
+     * cincuenta guias son cincuenta llamadas HTTP encadenadas, y por eso el
+     * listado tardaba lo suficiente como para necesitar un "Cargando...".
+     * Se acota a las guias que de verdad pueden cambiar de estado (emitidas y
+     * enviadas a SUNAT); moverlo a un job en segundo plano queda pendiente.
+     */
+    private function refrescarEstadosSunat($list, $estados): void
+    {
+        $pendientes = $list->filter(function ($g) {
+            return (int) $g->guia_estado_id === 1 && (int) $g->envio_sunat === 1;
+        });
 
-                        // Mapa según tu tabla guia_estados
-                        switch ($estadoApi) {
-                            case 'A': $nuevo_estado = 2; break; // Aceptada
-                            case 'B': $nuevo_estado = 3; break; // Rechazada
-                            case 'O': $nuevo_estado = 5; break; // Observado
-                        }
-
-                        if (!is_null($nuevo_estado) && (int)$nuevo_estado !== (int)$value->guia_estado_id) {
-                            // Actualiza en BD
-                            $guia = GuiaSalida::find($value->id);
-                            if ($guia) {
-                                $guia->guia_estado_id = $nuevo_estado;
-                                $guia->mensaje_estado_sunat = $estadoSunat->mensaje ?? null;
-                                $guia->save();
-                            }
-
-                            // Refleja en el listado en memoria
-                            $value->guia_estado_id = $nuevo_estado;
-                            $list[$key]->estado_nombre = GuiaEstado::find($nuevo_estado)->nombre;
-                        }
-                    }
-
-                } catch (\Throwable $e) {
-                    // registra el error; no cortamos el flujo del listado
-                    \Log::error('Error consultando estado SUNAT', [
-                        'guia_id' => $value->id,
-                        'mensaje' => $e->getMessage(),
-                    ]);
-                }
-            }
-            $mostrar_anular = false;
-
-            if ($value->guia_estado_id == 1 or $value->guia_estado_id == 2 or $value->guia_estado_id == 3 or $value->guia_estado_id == 5) {
-                $mostrar_anular = true;
-            }
-
-            $list[$key]->mostrar_anular = $mostrar_anular;
-
-
-            $list[$key]->url_pdf = $url_pdf;
-            $list[$key]->url_pdf_valorada = $url_pdf_valorada;
-
-            $mostrarGuardarDatamarket = true;
-            if ($value->enviado_datamarket == 1) {
-                $mostrarGuardarDatamarket = false;
-            }
-
-            $list[$key]->mostrarGuardarDatamarket = $mostrarGuardarDatamarket;
-
-            $verReintentoFacturador = false;
-            if ($value->envio_sunat == 1) {
-                if ($value->enviado_facturador == 0) {
-                    if ($value->guia_estado_id == 1) {
-                        $verReintentoFacturador = true;
-                    }
-                }
-            }
-
-            $list[$key]->verReintentoFacturador = $verReintentoFacturador;
-
+        if ($pendientes->isEmpty()) {
+            return;
         }
-        // dd($list);
-        $nro = 1;
-        return view('guia.salida.tabla', compact('list', 'nro'));
+
+        $urlConsulta = Parametro::find(9)->valor ?? '';
+        $rucEntidad  = Parametro::find(2)->valor ?? '';
+
+        if ($urlConsulta === '') {
+            return;
+        }
+
+        // Codigo de SUNAT -> id en la tabla guia_estados.
+        $mapa = ['A' => 2, 'B' => 3, 'O' => 5];
+
+        foreach ($pendientes as $g) {
+            try {
+                $respuesta = Http::post($urlConsulta, [
+                    'rucremitente' => (string) $rucEntidad,
+                    'serienumero'  => 'T' . str_pad($g->serie, 3, '0', STR_PAD_LEFT) . '-' . $g->numero,
+                ])->object();
+
+                if (! $respuesta || ! isset($respuesta->estado) || $respuesta->estado === null) {
+                    continue;
+                }
+
+                $codigo = strtoupper(trim((string) $respuesta->estado));
+
+                if (! isset($mapa[$codigo]) || $mapa[$codigo] === (int) $g->guia_estado_id) {
+                    continue;
+                }
+
+                $nuevoEstado = $mapa[$codigo];
+
+                $guia = GuiaSalida::find($g->id);
+                if ($guia) {
+                    $guia->guia_estado_id = $nuevoEstado;
+                    $guia->mensaje_estado_sunat = $respuesta->mensaje ?? null;
+                    $guia->save();
+                }
+
+                $g->guia_estado_id = $nuevoEstado;
+
+            } catch (\Throwable $e) {
+                // Que SUNAT no responda no puede impedir ver el listado.
+                Log::error('Error consultando estado SUNAT', [
+                    'guia_id' => $g->id,
+                    'mensaje' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     public function getSerie(Request $request)
@@ -248,32 +258,9 @@ class GuiaSalidaController extends Controller
 
         $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros;
         // dd($listSeries);
-        $listUbigeos = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-        // dd($listUbigeos);
-
-        // $listUbigeosDepartamentoPartida = $listUbigeos;
-        $listUbigeosDepartamentoPartida = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-        foreach ($listUbigeosDepartamentoPartida as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == '04') {//arequipa
-                $selected = "selected";
-            }
-            $listUbigeosDepartamentoPartida[$key]->selected = $selected;
-        }
-        // dd($listUbigeosDepartamentoPartida);
-        $listUbigeosProvinciaPartida = [];
-        $listUbigeosDistritoPartida = [];
-
-        $listUbigeosDepartamentoLlegada = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-        foreach ($listUbigeosDepartamentoLlegada as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == '04') {//arequipa
-                $selected = "selected";
-            }
-            $listUbigeosDepartamentoLlegada[$key]->selected = $selected;
-        }
-        $listUbigeosProvinciaLlegada = [];
-        $listUbigeosDistritoLlegada = [];
+        // Los ubigeos ya no se precargan aqui: eran siete llamadas a la API en
+        // cada apertura de la pantalla para llenar unos <select> que ahora se
+        // pintan desde el componente, que pide solo el nivel que necesita.
         $verChofer = 'display: none';
         $verVehiculo = 'display: none';
 
@@ -302,7 +289,7 @@ class GuiaSalidaController extends Controller
 
         $lineasDetalle = [];
 
-        return view('guia.salida.create', compact('lineasDetalle', 'listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listUbigeosDepartamentoPartida', 'listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo', 'validar_stock', 'clienteTransferencia'));
+        return view('guia.salida.create', compact('lineasDetalle', 'listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo', 'validar_stock', 'clienteTransferencia'));
     }
 
     public function continuar(GuiaSalida $guia)
@@ -408,81 +395,14 @@ class GuiaSalidaController extends Controller
         // dd($guia);
 
         // ubigeos de partida
-        $listUbigeosDepartamentoPartida = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-
-        foreach ($listUbigeosDepartamentoPartida as $key => $value) {
-            $selected = '';
-            if (trim($value->codUbigeo) == $guia->ubigeo_partida_departamento) {
-                $selected = "selected";
-            }
-            $listUbigeosDepartamentoPartida[$key]->selected = $selected;
-        }
-        // dd($guia->ubigeo_partida_provincia);
-        $listUbigeosProvinciaPartida = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => $guia->ubigeo_partida_departamento, 'tipoConsulta' => 2 ])->object()->ubigeos;
-        // dd($listUbigeosProvinciaPartida);
-        foreach ($listUbigeosProvinciaPartida as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == $guia->ubigeo_partida_provincia) {
-                $selected = "selected";
-            }
-            $listUbigeosProvinciaPartida[$key]->selected = $selected;
-        }
-        $listUbigeosDistritoPartida = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => $guia->ubigeo_partida_provincia, 'tipoConsulta' => 3 ])->object()->ubigeos;
-        // dd($listUbigeosDistritoPartida);
-        foreach ($listUbigeosDistritoPartida as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == $guia->ubigeo_partida_distrito) {
-                $selected = "selected";
-            }
-            $listUbigeosDistritoPartida[$key]->selected = $selected;
-        }
-
-        // dd($listUbigeosDepartamentoPartida);
-        // ubigeos de legada
-        $listUbigeosDepartamentoLlegada = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-
-        foreach ($listUbigeosDepartamentoLlegada as $key => $value) {
-            $selected = '';
-            if (trim($value->codUbigeo) == $guia->ubigeo_llegada_departamento) {
-                $selected = "selected";
-            }
-            $listUbigeosDepartamentoLlegada[$key]->selected = $selected;
-        }
-
-
-        $listUbigeosProvinciaLlegada = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => $guia->ubigeo_llegada_departamento, 'tipoConsulta' => 2 ])->object()->ubigeos;
-        // dd($listUbigeosProvinciaLlegada);
-        foreach ($listUbigeosProvinciaLlegada as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == $guia->ubigeo_llegada_provincia) {
-                $selected = "selected";
-            }
-            $listUbigeosProvinciaLlegada[$key]->selected = $selected;
-        }
-
-        $listUbigeosDistritoLlegada = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => $guia->ubigeo_llegada_provincia, 'tipoConsulta' => 3 ])->object()->ubigeos;
-        // dd($listUbigeosDistritoLlegada);
-        foreach ($listUbigeosDistritoLlegada as $key => $value) {
-            $selected = "";
-            if (trim($value->codUbigeo) == $guia->ubigeo_llegada_distrito) {
-                $selected = "selected";
-            }
-            $listUbigeosDistritoLlegada[$key]->selected = $selected;
-        }
-
-
-        $detalle = GuiaSalidaDetalle::where('guia_salida_id', $guia->id)->get();
-
-        $verChofer = 'display: none';
-        $verVehiculo = 'display: none';
-        if ($guia->modalidad_traslado == '02') {
-            $verChofer = '';
-            $verVehiculo = '';
-        }
+        // Los ubigeos guardados de la guia se le pasan al componente en
+        // `ubigeoInicial` (ver el x-data de la vista) y el rehidrata la cascada
+        // pidiendo solo los dos niveles que hacen falta. Antes eran seis
+        // llamadas a la API aqui, para llenar <select> que ya no existen.
 
         $lineasDetalle = $this->lineasParaVista($detalle);
 
-        return view('guia.salida.create', compact('lineasDetalle', 'guia', 'detalle','listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas', 'listUbigeosDepartamentoPartida','listUbigeosProvinciaPartida', 'listUbigeosDistritoPartida', 'listUbigeosDepartamentoLlegada', 'listUbigeosProvinciaLlegada', 'listUbigeosDistritoLlegada', 'listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
+        return view('guia.salida.create', compact('lineasDetalle', 'guia', 'detalle','listSeries','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listPrecios', 'listAlmacenes', 'listArticulos', 'listClientes', 'listVendedores', 'listVehiculos', 'listChoferes', 'listTransportistas','listAlmacenOrigen', 'listAlmacenDestino', 'verChofer', 'verVehiculo'));
     }
 
     public function getVendedor(Request $request)
@@ -741,91 +661,75 @@ class GuiaSalidaController extends Controller
 
     public function listarUbigeos(Request $request)
     {
+        // Devolvia <option> concatenados dentro del JSON, asi que un cambio de
+        // marcado obligaba a tocar PHP. Ahora devuelve datos y la vista los
+        // pinta con x-for.
+        $codigoUbigeo = (string) $request->input('codUbigeo', '');
+        $tipoConsulta = (int) $request->input('tipo_busqueda', 1);
+
+        return response()->json([
+            'procede'      => true,
+            'tipoConsulta' => $tipoConsulta,
+            'ubigeos'      => $this->ubigeosDesdeApi($codigoUbigeo, $tipoConsulta),
+        ]);
+    }
+
+    /**
+     * Consulta ubigeos a la ApiGRE y normaliza la forma.
+     *
+     * El codigo viene con relleno de espacios porque en el DataMart es char(n);
+     * sin el trim las comparaciones contra el ubigeo guardado nunca coinciden.
+     * Si la API falla, se devuelve lista vacia: un ubigeo ausente no puede
+     * impedir registrar la guia.
+     */
+    private function ubigeosDesdeApi(string $codigoPadre, int $tipoConsulta): array
+    {
         $api_datos = Parametro::find(6)->valor;
 
-        $codigoUbigeo = $request->post('codUbigeo');
-        $tipoConsulta = $request->post('tipo_busqueda');
-        $tipo_ubigeo = $request->post('tipo_ubigeo');
-        $next = false;
-        $procede = true;
-        $listUbigeos = Http::post("{$api_datos}/ObtieneUbigeos",
-            ['codigoUbigeo' => $codigoUbigeo, 'tipoConsulta' => $tipoConsulta ]
-        )->object()->ubigeos;
-
-        $tag_id = "{$tipo_ubigeo}_departamento";
-        if ($tipoConsulta == 2) {
-            $next = true;
-            $tag_id = "{$tipo_ubigeo}_provincia";
-        }
-        if ($tipoConsulta == 3) {
-            $tag_id = "{$tipo_ubigeo}_distrito";
+        try {
+            $lista = Http::post("{$api_datos}/ObtieneUbigeos", [
+                'codigoUbigeo' => $codigoPadre,
+                'tipoConsulta' => $tipoConsulta,
+            ])->object()->ubigeos ?? [];
+        } catch (Exception $e) {
+            Log::warning('No se pudieron obtener ubigeos: ' . $e->getMessage());
+            return [];
         }
 
-        // dd($listUbigeos);
-        $options = "";
-        foreach ($listUbigeos as $item) {
-            $codigo = trim($item->codUbigeo);
-            $options .= "<option value='{$codigo}'>{$item->descripcion}</option>";
-        }
-
-        return response()->json(['options' => $options, 'tag_id' => $tag_id, 'next' => $next, 'procede' => $procede]);
+        return collect($lista)->map(function ($item) {
+            return [
+                'codUbigeo'   => trim((string) ($item->codUbigeo ?? '')),
+                'descripcion' => trim((string) ($item->descripcion ?? '')),
+            ];
+        })->values()->all();
     }
 
     public function getUbigeosPorAlmacen(Request $request)
     {
-        // dd($request->post());
-        $tipo = $request->post('tipo');
-        $ubigeoDistrito = trim($request->post('ubigeo'));
-        $direccion = trim($request->post('direccion'));
+        // Armaba tres bloques de <option> con el "selected" cocido adentro.
+        // Ahora devuelve las tres listas y cual queda elegido en cada nivel;
+        // el marcado lo decide la vista.
+        $tipo           = (int) $request->input('tipo', 1);
+        $ubigeoDistrito = trim((string) $request->input('ubigeo', ''));
+        $direccion      = trim((string) $request->input('direccion', ''));
 
-        // dd($tipo, $ubigeo);
-        $ubigeoProvincia = Str::substr($ubigeoDistrito, 0,4);
-        $ubigeoDepartamento = Str::substr($ubigeoProvincia, 0,2);
+        // El ubigeo peruano es jerarquico: DDPPDD. La provincia son los 4
+        // primeros digitos y el departamento los 2 primeros.
+        $ubigeoProvincia    = Str::substr($ubigeoDistrito, 0, 4);
+        $ubigeoDepartamento = Str::substr($ubigeoProvincia, 0, 2);
 
-        // dd($ubigeoDistrito, $ubigeoProvincia, $ubigeoDepartamento);
-
-        $api_datos = Parametro::find(6)->valor;
-
-        $getUbigeoDepartamento = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => '', 'tipoConsulta' => 1 ])->object()->ubigeos;
-        // dd($getUbigeoDepartamento);
-        $optionsDepartamento = '';
-        foreach ($getUbigeoDepartamento as $item) {
-            $codUbigeo = trim($item->codUbigeo);
-            $selected = "";
-            if ($codUbigeo == $ubigeoDepartamento) {
-                $selected = "selected";
-            }
-            $optionsDepartamento .= "<option value='{$codUbigeo}' {$selected}>{$item->descripcion}</option>";
-        }
-
-        $getUbigeoProvincia = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => "{$ubigeoDepartamento}", 'tipoConsulta' => 2 ])->object()->ubigeos;
-        // dd($getUbigeoProvincia);
-        $optionsProvincia = '';
-        foreach ($getUbigeoProvincia as $item) {
-            $codUbigeo = trim($item->codUbigeo);
-            $selected = "";
-            if ($codUbigeo == $ubigeoProvincia) {
-                $selected = "selected";
-            }
-            $optionsProvincia .= "<option value='{$codUbigeo}' {$selected}>{$item->descripcion}</option>";
-        }
-
-        $getUbigeoDistrito = Http::post("{$api_datos}/ObtieneUbigeos", ['codigoUbigeo' => "{$ubigeoProvincia}", 'tipoConsulta' => 3 ])->object()->ubigeos;
-        // dd($getUbigeoDistrito);
-        $optionsDistrito = '';
-        foreach ($getUbigeoDistrito as $item) {
-            $codUbigeo = trim($item->codUbigeo);
-            $selected = "";
-            if ($codUbigeo == $ubigeoDistrito) {
-                $selected = "selected";
-            }
-            $optionsDistrito .= "<option value='{$codUbigeo}' {$selected}>{$item->descripcion}</option>";
-        }
-
-
-        // dd($optionsDepartamento, $optionsProvincia, $optionsDistrito);
-        return response()->json(['optionsDepartamento' => $optionsDepartamento, 'optionsProvincia' => $optionsProvincia, 'optionsDistrito' => $optionsDistrito, 'tipo' => $tipo, 'direccion' => $direccion]);
-
+        return response()->json([
+            'tipo'          => $tipo,
+            'direccion'     => $direccion,
+            'departamentos' => $this->ubigeosDesdeApi('', 1),
+            'provincias'    => $ubigeoDepartamento !== '' ? $this->ubigeosDesdeApi($ubigeoDepartamento, 2) : [],
+            'distritos'     => $ubigeoProvincia !== ''    ? $this->ubigeosDesdeApi($ubigeoProvincia, 3)    : [],
+            'seleccion'     => [
+                'departamento' => $ubigeoDepartamento,
+                'provincia'    => $ubigeoProvincia,
+                'distrito'     => $ubigeoDistrito,
+            ],
+        ]);
     }
 
     public function getModalidadTraslado(Request $request)
@@ -1321,24 +1225,13 @@ public function storeDataMart(Request $request)
     }
 
     // ============================================================
-    // 4. PASO 2: ACTUALIZAR SQL SERVER **ANTES DE ARMAR EL BODY**
-    // ============================================================
-    if (!empty($articulosConsignados) && \App\Support\ConfiguracionEmpresa::usaConsignados()) {
-        Log::info("PASO PREVIO: Actualizando consignados en SQL Server SALIDA", $articulosConsignados);
-        
-        $actualizacionExitosa = $this->actualizarConsignadosDirecto($articulosConsignados, 1);
-        
-        if (!$actualizacionExitosa) {
-            return response()->json([
-                'procede' => false,
-                'msj' => 'Error crítico: No se pudieron actualizar los productos consignados en SQL Server',
-                'msj_tipo' => 'error',
-                'log' => 'Fallo en actualizarConsignadosDirecto() para Guía de Salida'
-            ]);
-        }
-        
-        Log::info("✓ Consignados actualizados correctamente en SQL Server (Salida)");
-    }
+    // El "PASO 2" ya no existe. Marcaba MaestroArticulo.consignacion por
+    // conexion DIRECTA a SQL Server antes de llamar al stored procedure, y si
+    // fallaba abortaba la guia entera con "Error critico". Ahora el flag viaja
+    // dentro del cuerpo y lo resuelve el DataMart en la misma transaccion.
+    //
+    // Ademas Ingreso lo hacia DESPUES del procedimiento y Salida ANTES: el
+    // mismo dato con dos comportamientos distintos segun la pantalla.
 
     // ============================================================
     // 5. PASO 3: AHORA SÍ ARMAR EL BODY_DETALLE
@@ -1357,6 +1250,10 @@ public function storeDataMart(Request $request)
             "tipoGuia" => "A", // A = Salida
             "unidadMedida" => $item->cod_unidad ?? 1,
             "descuento" => $item->monto_descuento ?? 0,
+
+            // El flag viaja CON la guia, igual que en Ingreso.
+            "esConsignado" => (($item->es_consignado ?? 0) == 1) ? 1 : 0,
+            "tipoIgv"      => $item->tipo_igv ?? 1,
         );
     }
 
@@ -1411,11 +1308,19 @@ public function storeDataMart(Request $request)
     try {
         $storeRemoto = Http::post("{$api_datos}/InsertGuiaDMK", $body)->object();
         
-        if (isset($storeRemoto->exito) && $storeRemoto->exito == false) {
+        // Un 404 o un HTML de error llegan sin la propiedad exito, y con
+        // isset() eso pasaba por bueno: se informaba "registrada en DataMart"
+        // con la guia nunca enviada.
+        if (! is_object($storeRemoto) || ! isset($storeRemoto->exito)) {
             $procede = false;
+            $msj = "La ApiGRE no respondio como se esperaba. La guia NO se registro en el DataMart.";
             $msj_tipo = "error";
+            $log = "Respuesta inesperada de {$api_datos}/InsertGuiaDMK";
+        } elseif ($storeRemoto->exito == false) {
+            $procede = false;
             $msgErrorRemoto = $storeRemoto->msgerror ?? 'Error desconocido en remoto';
             $msj = "No se pudo completar : {$msgErrorRemoto}";
+            $msj_tipo = "error";
         }
     } catch (Exception $e) {
         $procede = false;
@@ -1477,32 +1382,6 @@ public function storeDataMart(Request $request)
         'log' => $log
     ]);
 }
-
-
-
-
-    private function actualizarConsignadosDirecto($codArticulos, $valorConsignado = 1)
-    {
-        // Si no hay artículos, no hacemos nada
-        if (empty($codArticulos)) {
-            return false;
-        }
-
-        try {
-            // Usamos la conexión directa 'sqlsrv' configurada anteriormente
-            DB::connection('sqlsrv')
-                ->table('MaestroArticulo')
-                ->whereIn('CodArticulo', $codArticulos) // whereIn es optimo para arrays
-                ->update(['consignacion' => $valorConsignado]);
-
-            Log::info("SQLSERVER: Actualizados artículos " . json_encode($codArticulos) . " a consignación: $valorConsignado");
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error("SQLSERVER Error actualizando consignados: " . $e->getMessage());
-            return false;
-        }
-    }
     
     public function facturacionElectronica(Request $request)
     {

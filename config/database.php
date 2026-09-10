@@ -79,22 +79,14 @@ return [
             'sslmode' => 'prefer',
         ],
 
-        'sqlsrv' => [
-            'driver' => 'sqlsrv',
-            'url' => env('DATABASE_URL'),
-            // OJO AQUÍ: Asegúrate que digan _SQLSRV al final
-            'host' => env('DB_HOST_SQLSRV', 'localhost'),
-            'port' => env('DB_PORT_SQLSRV', '1433'),
-            'database' => env('DB_DATABASE_SQLSRV', 'forge'),
-            'username' => env('DB_USERNAME_SQLSRV', 'forge'),
-            'password' => env('DB_PASSWORD_SQLSRV', ''),
-            
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'encrypt' => 'no',
-            'trust_server_certificate' => 'yes',
-        ],
+
+        // La conexion 'sqlsrv' se retiro a proposito.
+        //
+        // La aplicacion NO abre conexiones contra el SQL Server del cliente:
+        // todo pasa por la ApiGRE. Eso saca las credenciales `sa` del servidor
+        // web y elimina el nombre de base cableado que tenia el codigo
+        // ('db_travel.dbo.DetalleGuiaRemision'), que hacia el proyecto
+        // incompatible con cualquier otro cliente.
 
     ],
 

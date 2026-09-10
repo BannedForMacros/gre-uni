@@ -249,7 +249,17 @@ window.greDetalleGuia = function (config) {
                     desc_unidad_medida: l.descUnidadMedida,
                     sigla_umfe: l.siglaUmfe,
                     costo_articulo: l.costoArticulo,
-                    peso_unitario: l.peso,
+
+                    // El controller lee estos tres. Faltaban desde que este
+                    // metodo reemplazo al armado por DOM, y store() moria con
+                    // "Undefined property: stdClass::$precio_publico" antes de
+                    // guardar una sola linea del detalle.
+                    precio_publico: Number(l.precioPublico) || 0,
+                    precio_sin_igv: Number(l.precioSinIgv) || 0,
+
+                    // Ingreso lo lee como peso_unitario y Salida como peso.
+                    peso_unitario: Number(l.peso) || 0,
+                    peso: Number(l.peso) || 0,
                     tipo_igv: l.tipoIgv,
                     bonificacion: l.bonificacion ? 1 : 0,
                     es_consignado: l.esConsignado ? 1 : 0

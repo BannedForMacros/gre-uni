@@ -338,5 +338,26 @@ window.greGuiaIngreso = function (config) {
 };
 
 window.greGuiaSalida = function (config) {
-    return window.greGuiaForm(Object.assign({ tipo: 'salida' }, config || {}));
+    config = config || {};
+    var comp = window.greGuiaForm(Object.assign({ tipo: 'salida' }, config));
+
+    // Ubigeos y almacenes solo existen en Salida. Se componen aqui para que
+    // Ingreso no cargue con estado que no usa.
+    if (window.greGuiaUbigeos) {
+        var ubi = window.greGuiaUbigeos(config);
+
+        // El init del formulario ya hace lo suyo; se encadena el de ubigeos en
+        // vez de reemplazarlo.
+        var initForm = comp.init;
+        ubi.init = function () {
+            initForm.call(this);
+            this.iniciarUbigeos(config.ubigeoInicial);
+        };
+
+        // defineProperties y no Object.assign: assign ejecuta los getters al
+        // copiarlos y eso ya nos dejo un scope vacio sin aviso una vez.
+        Object.defineProperties(comp, Object.getOwnPropertyDescriptors(ubi));
+    }
+
+    return comp;
 };

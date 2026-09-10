@@ -20,6 +20,14 @@
                     agregarItem:     '{{ route('guiasalida.agregarItem') }}',
                     cargarOtraGuia:  '{{ route('guiasalida.cargarOtraGuia') }}',
                     listarArticulos: '{{ route('guiasalida.listarArticulos') }}'
+                },
+                rutasUbigeo: {
+                    listarUbigeos:        '{{ route('guiasalida.listarUbigeos') }}',
+                    getUbigeosPorAlmacen: '{{ route('guiasalida.getUbigeosPorAlmacen') }}'
+                },
+                ubigeoInicial: {
+                    partida: { distrito: '{{ $guia->ubigeo_partida ?? '' }}', direccion: '{{ $guia->direccion_partida ?? '' }}' },
+                    llegada: { distrito: '{{ $guia->ubigeo_llegada ?? '' }}', direccion: '{{ $guia->direccion_llegada ?? '' }}' }
                 }
              })"
      x-cloak>
@@ -312,7 +320,8 @@
                                         </div>
                                         <div class="col-md-12 mt-2" id="div_almacen_unico">
                                             <label class="form-label">Almacen</label>
-                                            <select class="form-select almacen_select" data-almacen_tipo='1' name="codalmacen" id="codalmacen">
+                                            <select class="form-select almacen_select" data-almacen_tipo="1" name="codalmacen" id="codalmacen"
+                                                    @change="alCambiarAlmacen('codalmacen')">
                                                 @foreach ($listAlmacenes as $item)
                                                     <option value="{{ $item->codAlmacen }}" data-nombre="{{ $item->descripcion }}"
                                                             data-ubigeo="{{ $item->ubigeo ?? '' }}"
@@ -326,7 +335,8 @@
                                         <div class="mt-2" id="div_almacene_transferencia" style="display: none">
                                             <div class="col-md-12">
                                                 <label class="form-label">Almacen Origen</label>
-                                                <select class="form-select almacen_select" data-almacen_tipo="1" name="cod_almacen_origen" id="cod_almacen_origen">
+                                                <select class="form-select almacen_select" data-almacen_tipo="1" name="cod_almacen_origen" id="cod_almacen_origen"
+                                                        @change="alCambiarAlmacen('cod_almacen_origen')">
                                                     @foreach ($listAlmacenOrigen as $item)
                                                         <option value="{{ $item->codAlmacen }}" data-nombre="{{ $item->descripcion }}"
                                                                 data-ubigeo="{{ $item->ubigeo ?? '' }}"
@@ -339,7 +349,8 @@
                                             </div>
                                             <div class="col-md-12">
                                                 <label class="form-label">Almacen Destino</label>
-                                                <select class="form-select almacen_select" data-almacen_tipo="2" name="cod_almacen_destino" id="cod_almacen_destino">
+                                                <select class="form-select almacen_select" data-almacen_tipo="2" name="cod_almacen_destino" id="cod_almacen_destino"
+                                                        @change="alCambiarAlmacen('cod_almacen_destino')">
                                                     @foreach ($listAlmacenDestino as $item)
                                                         <option value="{{ $item->codAlmacen }}" data-nombre="{{ $item->descripcion }}"
                                                                 data-ubigeo="{{ $item->ubigeo ?? '' }}"
@@ -436,97 +447,107 @@
                             <h5>Datos Partida</h5>
                             <div class="row mt-3 mb-2">
                                 <div class="col-md-6">
-                                    <label class="form-label">Departamento</label>
-                                    <select class="form-select ubigeo mt-1" data-tipo_busqueda="2" data-tipo_ubigeo="partida"
-                                            name="partida_departamento" id="partida_departamento">
-                                        @foreach ($listUbigeosDepartamentoPartida as $item)
-                                            <option value="{{ $item->codUbigeo }}" {{ $item->selected ?? '' }}>{{ $item->descripcion }}
-                                            </option>
-                                        @endforeach
+                                    <label class="form-label" for="partida_departamento">Departamento</label>
+                                    <select class="form-select mt-1" id="partida_departamento"
+                                            name="partida_departamento"
+                                            x-model="ubigeos.partida.departamento"
+                                            @change="alCambiarDepartamento('partida')">
+                                        <option value="">-- Seleccione --</option>
+                                        <template x-for="u in ubigeos.departamentos" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Provincia</label>
-                                    <select class="form-select mt-1 ubigeo" data-tipo_busqueda="3" data-tipo_ubigeo="partida"
-                                            name="partida_provincia" id="partida_provincia">
-                                        @if (count($listUbigeosProvinciaPartida) > 0)
-                                            @foreach ($listUbigeosProvinciaPartida as $item)
-                                                <option value="{{ $item->codUbigeo }}" {{ $item->selected }}>
-                                                    {{ $item->descripcion }}
-                                                </option>
-                                            @endforeach
-                                        @endif
+                                    <label class="form-label" for="partida_provincia">Provincia</label>
+                                    <select class="form-select mt-1" id="partida_provincia"
+                                            name="partida_provincia"
+                                            x-model="ubigeos.partida.provincia"
+                                            @change="alCambiarProvincia('partida')"
+                                            :disabled="!ubigeos.partida.departamento">
+                                        <option value="">-- Seleccione --</option>
+                                        <template x-for="u in ubigeos.partida.provincias" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Distrito</label>
-                                    <select class="form-select mt-1 ubigeo" name="ubigeo_partida" data-tipo_ubigeo="partida"
-                                            id="partida_distrito">
-                                        @if (count($listUbigeosDistritoPartida) > 0)
-                                            @foreach ($listUbigeosDistritoPartida as $item)
-                                                <option value="{{ $item->codUbigeo }}" {{ $item->selected }}>
-                                                    {{ $item->descripcion }}
-                                                </option>
-                                            @endforeach
-                                        @endif
+                                    <label class="form-label" for="partida_distrito">Distrito</label>
+                                    <select class="form-select mt-1" id="partida_distrito"
+                                            name="ubigeo_partida"
+                                            x-model="ubigeos.partida.distrito"
+                                            :disabled="!ubigeos.partida.provincia">
+                                        <option value="">-- Seleccione Distrito --</option>
+                                        <template x-for="u in ubigeos.partida.distritos" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
+                                    <span class="gre-ubigeo-cargando" x-show="ubigeos.partida.cargando" x-cloak>
+                                        <i class="fa fa-circle-notch fa-spin"></i> cargando…
+                                    </span>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-12">
-                                    <label class="form-label">Direccion Partida</label>
-                                    <input type="text" class="form-control" name="direccion_partida" id="direccion_partida"
-                                           placeholder="Direccion de Partida" value="{{ $guia->direccion_partida ?? '' }}">
+                                    <label class="form-label" for="direccion_partida">Direccion de Partida</label>
+                                    <input type="text" class="form-control" id="direccion_partida"
+                                           name="direccion_partida"
+                                           x-model="ubigeos.partida.direccion"
+                                           placeholder="Direccion de Partida">
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-
                             <h5>Datos Llegada</h5>
                             <div class="row mt-3 mb-2">
                                 <div class="col-md-6">
-                                    <label class="form-label">Departamento</label>
-                                    <select class="form-select ubigeo mt-1" data-tipo_busqueda="2" data-tipo_ubigeo="llegada"
-                                            name="llegada_departamento" id="llegada_departamento">
-                                        @foreach ($listUbigeosDepartamentoLlegada as $item)
-                                            <option value="{{ $item->codUbigeo }}" {{ $item->selected ?? '' }}>{{ $item->descripcion }}
-                                            </option>
-                                        @endforeach
+                                    <label class="form-label" for="llegada_departamento">Departamento</label>
+                                    <select class="form-select mt-1" id="llegada_departamento"
+                                            name="llegada_departamento"
+                                            x-model="ubigeos.llegada.departamento"
+                                            @change="alCambiarDepartamento('llegada')">
+                                        <option value="">-- Seleccione --</option>
+                                        <template x-for="u in ubigeos.departamentos" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Provincia</label>
-                                    <select class="form-select mt-1 ubigeo" data-tipo_busqueda="3" data-tipo_ubigeo="llegada"
-                                            name="llegada_provincia" id="llegada_provincia">
-                                        @if (count($listUbigeosProvinciaLlegada) > 0)
-                                            @foreach ($listUbigeosProvinciaLlegada as $item)
-                                                <option value="{{ $item->codUbigeo }}" {{ $item->selected }}>
-                                                    {{ $item->descripcion }}
-                                                </option>
-                                            @endforeach
-                                        @endif
+                                    <label class="form-label" for="llegada_provincia">Provincia</label>
+                                    <select class="form-select mt-1" id="llegada_provincia"
+                                            name="llegada_provincia"
+                                            x-model="ubigeos.llegada.provincia"
+                                            @change="alCambiarProvincia('llegada')"
+                                            :disabled="!ubigeos.llegada.departamento">
+                                        <option value="">-- Seleccione --</option>
+                                        <template x-for="u in ubigeos.llegada.provincias" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Distrito</label>
-                                    <select class="form-select mt-1 ubigeo" name="ubigeo_llegada" data-tipo_ubigeo="llegada"
-                                            id="llegada_distrito">
-                                        @if (count($listUbigeosDistritoLlegada) > 0)
-                                            @foreach ($listUbigeosDistritoLlegada as $item)
-                                                <option value="{{ $item->codUbigeo }}" {{ $item->selected }}>
-                                                    {{ $item->descripcion }}
-                                                </option>
-                                            @endforeach
-                                        @endif
+                                    <label class="form-label" for="llegada_distrito">Distrito</label>
+                                    <select class="form-select mt-1" id="llegada_distrito"
+                                            name="ubigeo_llegada"
+                                            x-model="ubigeos.llegada.distrito"
+                                            :disabled="!ubigeos.llegada.provincia">
+                                        <option value="">-- Seleccione Distrito --</option>
+                                        <template x-for="u in ubigeos.llegada.distritos" :key="u.codUbigeo">
+                                            <option :value="u.codUbigeo" x-text="u.descripcion"></option>
+                                        </template>
                                     </select>
+                                    <span class="gre-ubigeo-cargando" x-show="ubigeos.llegada.cargando" x-cloak>
+                                        <i class="fa fa-circle-notch fa-spin"></i> cargando…
+                                    </span>
                                 </div>
                             </div>
-
                             <div class="row">
                                 <div class="col-md-12">
-                                    <label class="form-label">Llegada</label>
-                                    <input type="text" class="form-control" name="direccion_llegada" id="direccion_llegada"
-                                           placeholder="Direccion de llegada" value="{{ $guia->direccion_llegada ?? '' }}">
+                                    <label class="form-label" for="direccion_llegada">Direccion de Llegada</label>
+                                    <input type="text" class="form-control" id="direccion_llegada"
+                                           name="direccion_llegada"
+                                           x-model="ubigeos.llegada.direccion"
+                                           placeholder="Direccion de Llegada">
                                 </div>
                             </div>
                         </div>
@@ -821,11 +842,10 @@
         <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
         <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
         <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
+        <script src="{{ asset('js/gre/guia-ubigeos.js?v=') }}{{ rand() }}"></script>
         <script src="{{ asset('js/gre/guia-form.js?v=') }}{{ rand() }}"></script>
 
         <script src="{{ asset('js/guias/salida/create.js?v=') }}{{ rand() }}"></script>
-        <script src="{{ asset('js/guias/salida/ubigeo.js?v=') }}{{ rand() }}"></script>
-        <script src="{{ asset('js/guias/salida/almacen.js?v=') }}{{ rand() }}"></script>
         <script>
             $(document).ready(function() {
                 // Seleccionamos TODOS los elementos que vamos a necesitar

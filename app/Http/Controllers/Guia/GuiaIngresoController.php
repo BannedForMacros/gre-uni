@@ -41,43 +41,55 @@ class GuiaIngresoController extends Controller
     }
     public function listar(Request $request)
     {
-        $fechaInicio = $request->post('fecha_inicio');
-        $fechaFin = $request->post('fecha_fin');
-        $serie = $request->post('serie');
-        $numero = $request->post('numero');
+        // Devolvia una vista parcial (HTML) que el JavaScript inyectaba con
+        // $('#resultados').html(). Eso ataba el diseno de la tabla al backend y
+        // obligaba a re-inicializar DataTables a mano en cada busqueda. Ahora
+        // devuelve datos y la vista los pinta.
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin    = $request->input('fecha_fin');
+        $serie       = $request->input('serie');
+        $numero      = $request->input('numero');
 
-        $consulta = DB::table('guia_ingresos')->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])->where('activo', 1);
-        
-        if ($serie != '') {
+        $consulta = DB::table('guia_ingresos')
+            ->whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
+            ->where('activo', 1);
+
+        if ($serie !== null && $serie !== '') {
             $consulta = $consulta->where('serie', $serie);
         }
-        if ($numero != '') {
+        if ($numero !== null && $numero !== '') {
             $consulta = $consulta->where('numero', $numero);
         }
-        
-        $list = $consulta->get();
-        // dd($list);
 
-        foreach ($list as $key => $value) {
-            $list[$key]->estado_nombre = GuiaEstado::find($value->guia_estado_id)->nombre;
-            $mostrar_eliminar = false;
-            if ($value->guia_estado_id == 1) {
-                $mostrar_eliminar = true;
-                
-            }
-            
-            $list[$key]->mostrar_eliminar = $mostrar_eliminar;
-            
-            $mostrarGuardarDatamarket = true;
-            if ($value->enviado_datamarket == 1) {
-                $mostrarGuardarDatamarket = false;
-            }
-            
-            $list[$key]->mostrarGuardarDatamarket = $mostrarGuardarDatamarket;
+        $list = $consulta->orderBy('fecha_emision', 'desc')->orderBy('id', 'desc')->get();
 
-        }
-        // dd($list);
-        return view('guia.ingreso.tabla', compact('list'));
+        // Los estados se traen de una vez. Antes se hacia GuiaEstado::find()
+        // dentro del bucle: una consulta por fila.
+        $estados = GuiaEstado::pluck('nombre', 'id');
+
+        $guias = $list->map(function ($g) use ($estados) {
+            return [
+                'id'            => $g->id,
+                'documento'     => $g->serie . '-' . $g->numero,
+                'serie'         => $g->serie,
+                'numero'        => (int) $g->numero,
+                'razonSocial'   => $g->proveedor_nombre,
+                'fechaEmision'  => $g->fecha_emision,
+                'totalVenta'    => (float) $g->total_venta,
+                'guiaEstadoId'  => (int) $g->guia_estado_id,
+                'estadoNombre'  => $estados[$g->guia_estado_id] ?? '',
+
+                'mostrarEliminar'          => (int) $g->guia_estado_id === 1,
+                'mostrarGuardarDatamarket' => (int) $g->enviado_datamarket !== 1,
+                'mostrarContinuar'         => (int) $g->guia_estado_id === 4,
+
+                'urlPdf'         => route('guiaingreso.pdf', ['guia' => $g->id, 'valorada' => 0]),
+                'urlPdfValorada' => route('guiaingreso.pdf', ['guia' => $g->id, 'valorada' => 1]),
+                'urlContinuar'   => route('guiaingreso.continuar', ['guia' => $g->id]),
+            ];
+        })->values();
+
+        return response()->json(['procede' => true, 'guias' => $guias]);
     }
     /**
      * Show the form for creating a new resource.
@@ -832,10 +844,23 @@ public function buscarArticuloBarra(Request $request)
         return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log, 'id' => $id]);
     }
     
+    /**
+     * Antes borraba las comillas y los apostrofes de la descripcion:
+     *
+     *     L'OREAL SHAMPOO  ->  LOREAL SHAMPOO
+     *
+     * Era el parche para el bug de concatenacion de HTML, cuando el <tr> se
+     * armaba con atributos entre comillas simples y un apostrofe truncaba la
+     * fila. Ese HTML ya no existe, pero el parche seguia destruyendo el nombre
+     * del articulo de forma permanente en la base.
+     *
+     * Ahora solo se normalizan los espacios y se quitan los caracteres de
+     * control, que si rompen el XML que se manda al DataMart.
+     */
     function limpiarCaracteres($cadena)
     {
-        $caracteresEspeciales = ['"', "'"];
-        return str_replace($caracteresEspeciales, '', $cadena);
+        $limpia = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', (string) $cadena);
+        return trim(preg_replace('/\s+/u', ' ', $limpia));
     }
 
     public function asignarSerie($serie_busqueda)
@@ -1006,6 +1031,13 @@ public function storeDataMart(Request $request)
                 
                 "tipoGuia" => "N",
                 "unidadMedida" => $item->cod_unidad ?? 1,
+
+                // El flag viaja CON la guia. Antes no iba en el cuerpo y el
+                // DataMart lo copiaba de MaestroArticulo.consignacion, que es
+                // lo que obligaba a marcar el maestro por conexion directa
+                // antes del stored procedure.
+                "esConsignado" => (($item->es_consignado ?? 0) == 1) ? 1 : 0,
+                "tipoIgv"      => $item->tipo_igv ?? 1,
             );
         }
 
@@ -1061,10 +1093,20 @@ public function storeDataMart(Request $request)
         try {
             $storeRemoto = Http::post("{$api_datos}/InsertGuiaDMK", $body)->object();
 
-            if (isset($storeRemoto->exito) && $storeRemoto->exito == false) {
+            // Un 404 o un HTML de error devuelven algo SIN la propiedad exito,
+            // y con isset() eso pasaba por bueno: al usuario se le decia
+            // "registrada en DataMarket" con la guia nunca enviada. Aqui el
+            // exito tiene que ser afirmado explicitamente.
+            if (! is_object($storeRemoto) || ! isset($storeRemoto->exito)) {
+                $procede = false;
+                $msj = "La ApiGRE no respondio como se esperaba. La guia NO se registro en el DataMart.";
+                $msj_tipo = "error";
+                $log = "Respuesta inesperada de {$api_datos}/InsertGuiaDMK";
+            } elseif ($storeRemoto->exito == false) {
                 $procede = false;
                 $msgErrorRemoto = $storeRemoto->msgerror ?? 'Error desconocido en remoto';
                 $msj = "No se pudo completar : {$msgErrorRemoto}";
+                $msj_tipo = "error";
             }
 
         } catch (Exception $e) {
@@ -1075,57 +1117,13 @@ public function storeDataMart(Request $request)
             Log::error($log);
         }
 
-        // ============================================================
-        // PASO 5.5: Re-aplicar consignados DESPUÉS de la API (Laravel manda)
-        // El SP InsertarGuiasOdooDmk pisa los flags de consignación por timing,
-        // así que actualizamos MaestroArticulo y DetalleGuiaRemision AQUÍ,
-        // después de que el SP ya insertó la guía.
-        //
-        // NOTA: Este bloque toca columnas de SQL Server (MaestroArticulo.consignacion
-        // y DetalleGuiaRemision.esconsignado) que solo existen en clientes que usan
-        // consignados. Por eso está protegido por el flag \App\Support\ConfiguracionEmpresa::usaConsignados()
-        // (CONSIGNADOS_ENABLED en .env). Apagado por defecto -> no toca SQL Server.
-        // ============================================================
-        if ($procede == true && \App\Support\ConfiguracionEmpresa::usaConsignados()) {
+        // El PASO 5.5 ya no existe. Marcaba MaestroArticulo.consignacion y
+        // parchaba DetalleGuiaRemision.esconsignado por conexion DIRECTA a
+        // SQL Server, despues de llamar al stored procedure. De ahi salia el
+        // problema de orden: segun el controller corria antes o despues, y el
+        // resultado cambiaba. Ahora el flag viaja dentro del cuerpo de la guia
+        // y lo resuelve el DataMart en la misma transaccion del insert.
 
-            // (a) MaestroArticulo: ahora SÍ después del SP, para que no lo pise
-            if (!empty($articulosConsignados)) {
-                Log::info("PASO 5.5(a): Re-actualizando consignados en MaestroArticulo (post-API)", $articulosConsignados);
-                $resMaestro = $this->actualizarConsignadosDirecto($articulosConsignados, 1);
-                if ($resMaestro === false) {
-                    Log::warning("DataMart Ingreso {$guia->serie}-{$guia->numero}: MaestroArticulo NO se actualizó (error de conexión/driver).");
-                } else {
-                    $maestrosActualizados = $resMaestro; // nº de filas realmente actualizadas
-                }
-            }
-
-            // (b) DetalleGuiaRemision: sincronizar esconsignado (como ya estaba)
-            $resDetalle = $this->sincronizarConsignadoEnDetalle(
-                $anio,
-                $guia->serie,
-                $guia->numero,
-                'N', // N = Ingreso
-                $detalle
-            );
-            if (!$resDetalle['ok']) {
-                Log::warning("DataMart Ingreso {$guia->serie}-{$guia->numero}: esconsignado no se sincronizó. " . json_encode($resDetalle));
-            }
-        }
-
-        // ============================================================
-        // PASO 6: Actualizar estado local
-        // ============================================================
-        if ($procede == true) {
-            try {
-                $guia->enviado_datamarket = 1;
-                $guia->save();
-            } catch (Exception $e) {
-                $procede = false;
-                $msj = "Se envió a DataMarket pero falló al actualizar el estado local.";
-                $msj_tipo = "error";
-                $log = "Error Local DB: " . $e->getMessage();
-            }
-        }
 
         if ($procede == false && $panel_origen != 'index') {
             $msj = "{$msj} <br> <button class='btn btn-success btn-sm' id='btnReintentarDataMart' data-id='{$id}' ><i class='fa-regular fa-paper-plane'></i> Reintentar</button>";
@@ -1246,74 +1244,90 @@ public function storeDataMart(Request $request)
 
     public function eliminar(Request $request)
     {
-        // dd($request->post());
-        $id = $request->post('id');
-        
+        /*
+         * TRES DEFECTOS QUE TENIA ESTE METODO
+         *
+         * 1. $body se construia dentro del if ($procede == true) pero se usaba
+         *    despues, fuera de ese if, en registrarAuditoria(). Si el guardado
+         *    local fallaba, $body no existia: aviso de variable indefinida y
+         *    una fila de auditoria con "null" como payload.
+         *
+         * 2. Ponia activo = 0 y, si el DataMart rechazaba la eliminacion,
+         *    restauraba guia_estado_id pero NO activo. La guia quedaba invisible
+         *    en el listado (activo = 0) pero viva en el DataMart: desaparecia de
+         *    la pantalla sin haberse eliminado de verdad.
+         *
+         * 3. En ese mismo camino de error dejaba msj_tipo = "", asi que el aviso
+         *    salia sin icono y sin color de error.
+         */
+        $id   = $request->input('id');
         $guia = GuiaIngreso::find($id);
-        
-        $guia->activo = 0;
 
-        // dd($guia);
+        if (! $guia) {
+            return response()->json([
+                'procede'  => false,
+                'msj'      => 'La guia ya no existe.',
+                'msj_tipo' => 'error',
+            ], 404);
+        }
 
-        $procede = true;
-        $msj = "Guia de Ingreso {$guia->serie}-{$guia->numero} Eliminada";
-        $msj_tipo = "success";
-        $log = "";
+        $documento = $guia->serie . '-' . $guia->numero;
+
+        // Se recuerda el estado previo para poder revertir si el DataMart falla.
+        $activoPrevio = $guia->activo;
+        $estadoPrevio = $guia->guia_estado_id;
 
         try {
+            $guia->activo = 0;
             $guia->save();
+        } catch (Exception $e) {
+            Log::error(__METHOD__ . ': ' . $e->getMessage());
+
+            return response()->json([
+                'procede'  => false,
+                'msj'      => "No se pudo eliminar la guia {$documento}.",
+                'msj_tipo' => 'error',
+            ], 500);
+        }
+
+        $this->registrarAuditoria($guia->id, 4, 'guia_ingresos', json_encode($guia), "Guia {$documento} eliminada");
+
+        $anio = Carbon::parse($guia->fecha_emision)->year;
+
+        $body = [
+            'anioGuiaRemision' => $anio,
+            'codProveedor'     => $guia->proveedor_id,
+            'numSerie'         => $guia->serie,
+            'numeroGuia'       => $guia->numero,
+        ];
+
+        try {
+            $api_datos = Parametro::find(6)->valor;
+            Http::post("{$api_datos}/EliminaGuiaDMK", $body)->object();
 
         } catch (Exception $e) {
-            //throw $th;
-            $procede = false;
-            $msj = "No se pudo eliminar la Guia";
-            $msj_tipo = "error";
-            $log = "{$e}";
-        }
+            Log::error(__METHOD__ . ' (DataMart): ' . $e->getMessage());
 
-        // auditoria eliminar local
-        $this->registrarAuditoria($guia->id, 4, 'guia_ingresos', json_encode($guia), strip_tags($msj));
-
-
-        if ($procede == true) {
-            $api_datos = Parametro::find(6)->valor;
-
-            $fecha = Carbon::parse($guia->fecha_emision);
-            $anio = $fecha->year;
-
-            $cod_proveedor = $guia->proveedor_id;
-            // if ($cod_proveedor == null) {
-            //     $cod_proveedor = $guia->cliente_id;
-            // }
-
-            $body = [
-                "anioGuiaRemision" => $anio,
-                "codProveedor" => $cod_proveedor,
-                "numSerie" => $guia->serie,
-                "numeroGuia" => $guia->numero
-            ];
-            // dd($body);
-            try {
-                $anularRemoto = Http::post("{$api_datos}/EliminaGuiaDMK", $body)->object();
-
-            } catch (Exception $e) {
-                $procede = false;
-                $msj = "No se pudo completar eliminar en DataMark";
-                $msj_tipo = "";
-                $log = "{$e}";
-            }
-            // dd($anularRemoto);
-        }
-
-        $this->registrarAuditoria($guia->id, 4, 'guia_ingresos_datamart', json_encode($body), strip_tags($msj));
-
-        if ($procede == false) {
-            $guia->guia_estado_id = 1;
+            // Se revierte TODO, no solo el estado: dejarla con activo = 0 la
+            // ocultaba del listado aunque siguiera existiendo en el DataMart.
+            $guia->activo         = $activoPrevio;
+            $guia->guia_estado_id = $estadoPrevio;
             $guia->save();
+
+            return response()->json([
+                'procede'  => false,
+                'msj'      => "No se pudo eliminar la guia {$documento} en el DataMart. No se elimino nada.",
+                'msj_tipo' => 'error',
+            ], 502);
         }
 
+        $this->registrarAuditoria($guia->id, 4, 'guia_ingresos_datamart', json_encode($body), "Guia {$documento} eliminada en DataMart");
 
-        return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log]);
+        return response()->json([
+            'procede'  => true,
+            'msj'      => "Guia de Ingreso {$documento} eliminada",
+            'msj_tipo' => 'success',
+        ]);
     }
 
     public function modalOtrasGuias(Request $request)
@@ -1388,118 +1402,6 @@ public function storeDataMart(Request $request)
 
         return (object) array ('procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log);
 
-    }
-
-
-    private function actualizarConsignadosDirecto($codArticulos, $valorConsignado = 1)
-    {
-        // Si no hay artículos, no hacemos nada
-        if (empty($codArticulos)) {
-            return false;
-        }
-
-        try {
-            $conn = DB::connection('sqlsrv');
-            $dbName = $conn->getDatabaseName();
-
-            // Diagnóstico: ¿cuántos de esos CodArticulo existen realmente en el maestro?
-            $existentes = $conn->table('MaestroArticulo')
-                ->whereIn('CodArticulo', $codArticulos)
-                ->count();
-
-            Log::info("SQLSERVER[maestro] BD='{$dbName}' | a actualizar=" . json_encode($codArticulos)
-                . " | encontrados en MaestroArticulo={$existentes}/" . count($codArticulos)
-                . " | valor consignacion={$valorConsignado}");
-
-            // update() devuelve el número de filas afectadas
-            $afectados = $conn->table('MaestroArticulo')
-                ->whereIn('CodArticulo', $codArticulos) // whereIn es optimo para arrays
-                ->update(['consignacion' => $valorConsignado]);
-
-            if ($afectados === 0) {
-                // El UPDATE corrió sin error pero NO tocó ninguna fila:
-                // esto es lo que hace que "no se actualice" sin lanzar excepción.
-                Log::warning("SQLSERVER[maestro] ⚠️ UPDATE afectó 0 filas. Los CodArticulo "
-                    . json_encode($codArticulos) . " no coinciden con MaestroArticulo (¿tipo/formato/base distinta?).");
-            } else {
-                Log::info("SQLSERVER[maestro] ✓ Consignación actualizada: filas_afectadas={$afectados}");
-            }
-
-            return $afectados; // nº de filas del maestro realmente actualizadas
-
-        } catch (\Exception $e) {
-            Log::error("SQLSERVER[maestro] Error actualizando consignados: " . $e->getMessage());
-            return false;
-        }
-    }
-
-
-    /**
-     * Sincroniza el flag esconsignado en DetalleGuiaRemision (SQL Server)
-     * según el flag es_consignado de cada ítem en MySQL.
-     *
-     * Se llama DESPUÉS del POST a /InsertGuiaDMK, así Laravel queda como fuente
-     * de verdad y no depende de que el SP propague consignacion -> esconsignado
-     * (cosa que falla por timing, porque el SP solo inserta una vez por guía).
-     */
-    private function sincronizarConsignadoEnDetalle($anio, $serie, $numero, $tipoGuia, $detalle)
-    {
-        try {
-            $codConsignados = [];
-            $codNoConsignados = [];
-
-            foreach ($detalle as $item) {
-                $cod = trim((string)$item->codarticulo);
-                if ($cod === '') {
-                    continue;
-                }
-                if (($item->es_consignado ?? 0) == 1) {
-                    $codConsignados[] = $cod;
-                } else {
-                    $codNoConsignados[] = $cod;
-                }
-            }
-
-            $codConsignados = array_values(array_unique($codConsignados));
-            $codNoConsignados = array_values(array_unique($codNoConsignados));
-
-            $afectados1 = 0;
-            $afectados0 = 0;
-
-            if (!empty($codConsignados)) {
-                $afectados1 = DB::connection('sqlsrv')
-                    ->table('db_travel.dbo.DetalleGuiaRemision')
-                    ->where('AnioGuiaRemision', $anio)
-                    ->where('NumSerie', $serie)
-                    ->where('NumeroGuia', $numero)
-                    ->where('TipoGuia', $tipoGuia)
-                    ->whereIn('CodArticulo', $codConsignados)
-                    ->update(['esconsignado' => 1]);
-            }
-
-            if (!empty($codNoConsignados)) {
-                $afectados0 = DB::connection('sqlsrv')
-                    ->table('db_travel.dbo.DetalleGuiaRemision')
-                    ->where('AnioGuiaRemision', $anio)
-                    ->where('NumSerie', $serie)
-                    ->where('NumeroGuia', $numero)
-                    ->where('TipoGuia', $tipoGuia)
-                    ->whereIn('CodArticulo', $codNoConsignados)
-                    ->update(['esconsignado' => 0]);
-            }
-
-            Log::info("DetalleGuiaRemision esconsignado sincronizado: guia={$serie}-{$numero} tipo={$tipoGuia} anio={$anio}, consignados_afectados={$afectados1}, no_consignados_afectados={$afectados0}");
-
-            return [
-                'ok' => true,
-                'consignados' => $afectados1,
-                'no_consignados' => $afectados0,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error("Error sincronizando esconsignado en DetalleGuiaRemision: " . $e->getMessage());
-            return ['ok' => false, 'msj' => $e->getMessage()];
-        }
     }
 
 }

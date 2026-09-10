@@ -396,3 +396,81 @@
 }
 
 .gre-aviso-stock i { color: var(--gre-alerta); }
+
+/* --- Cascada de ubigeos ------------------------------------------------------
+   El nivel siguiente queda deshabilitado hasta que el anterior tiene valor:
+   antes se podia elegir un distrito colgando de otro departamento y asi se
+   guardaban ubigeos incoherentes. */
+.gre select:disabled {
+  background-color: var(--gre-borde-tenue);
+  color: var(--gre-texto-tenue);
+  cursor: not-allowed;
+}
+
+.gre-ubigeo-cargando {
+  display: inline-block;
+  margin-top: .25rem;
+  font-size: .75rem;
+  color: var(--gre-texto-tenue);
+}
+
+/* --- Listados ---------------------------------------------------------------
+   Orden, filtro rapido y paginacion se resuelven en el componente. Era lo unico
+   que aportaba DataTables, y mantenerlo obligaba a seguir generando la tabla en
+   PHP para volver a inicializarlo en cada busqueda. */
+.gre-filtros {
+  background: var(--gre-superficie);
+  border: 1px solid var(--gre-borde-tenue);
+  border-radius: .5rem;
+  padding: .875rem 1rem;
+}
+
+.gre-filtros .form-label {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--gre-texto-tenue);
+  margin-bottom: .25rem;
+}
+
+/* Cabecera ordenable. Sin el cursor y el resalte no hay nada que sugiera
+   que la columna se puede tocar. */
+.gre-orden {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.gre-orden:hover { color: var(--gre-acento); }
+.gre-orden span  { font-size: .7rem; opacity: .7; }
+
+.gre-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: .75rem;
+  padding: .5rem .25rem;
+}
+
+.gre-paginacion-info {
+  font-size: .85rem;
+  color: var(--gre-texto-tenue);
+  font-variant-numeric: tabular-nums;
+}
+
+.gre-paginacion-info strong { color: var(--gre-texto); }
+
+.gre-error {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  color: #8a1f1f;
+  border-radius: .5rem;
+  padding: .6rem .875rem;
+  font-size: .875rem;
+}
