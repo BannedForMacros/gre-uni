@@ -57,7 +57,6 @@ Route::controller(GuiaSalidaController::class)->group(function (){
 
     Route::post('guiasalida/getModalidadTraslado', 'getModalidadTraslado')->name('guiasalida.getModalidadTraslado');
     Route::post('guiasalida/agregarItem', 'agregarItem')->name('guiasalida.agregarItem');
-    Route::post('guiasalida/formBusquedaArticulo', 'formBusquedaArticulo')->name('guiasalida.formBusquedaArticulo');
     Route::post('guiasalida/getVendedor', 'getVendedor')->name('guiasalida.getVendedor');
     Route::post('guiasalida/buscarArticuloBarra', 'buscarArticuloBarra')->name('guiasalida.buscarArticuloBarra');
     Route::get('guiasalida/listarArticulos', 'listarArticulos')->name('guiasalida.listarArticulos');
@@ -66,6 +65,7 @@ Route::controller(GuiaSalidaController::class)->group(function (){
     Route::get('guiasalida/listarProveedores', 'listarProveedores')->name('guiasalida.listarProveedores');
     Route::post('guiasalida/getSerie', 'getSerie')->name('guiasalida.getSerie');
     Route::post('guiasalida/listar', 'listar')->name('guiasalida.listar');
+    Route::post('guiasalida/estadosSunat', 'estadosSunat')->name('guiasalida.estadosSunat');
     Route::post('guiasalida/listarUbigeos', 'listarUbigeos')->name('guiasalida.listarUbigeos');
     Route::post('guiasalida/getUbigeosPorAlmacen', 'getUbigeosPorAlmacen')->name('guiasalida.getUbigeosPorAlmacen');
     Route::get('guiasalida/pdf/{guia}/{valorada}', 'pdf')->name('guiasalida.pdf');
@@ -87,7 +87,6 @@ Route::controller(GuiaSalidaController::class)->group(function (){
 Route::controller(GuiaIngresoController::class)->group(function (){
     
     Route::post('guiaingreso/agregarItem', 'agregarItem')->name('guiaingreso.agregarItem');
-    Route::post('guiaingreso/formBusquedaArticulo', 'formBusquedaArticulo')->name('guiaingreso.formBusquedaArticulo');
     Route::post('guiaingreso/getVendedor', 'getVendedor')->name('guiaingreso.getVendedor');
     Route::post('guiaingreso/buscarArticuloBarra', 'buscarArticuloBarra')->name('guiaingreso.buscarArticuloBarra');
     Route::get('guiaingreso/listarProveedores', 'listarProveedores')->name('guiaingreso.listarProveedores');

@@ -289,11 +289,9 @@ var callStore = (guardar_avance = false) => {
   }
   // new Response(formData).text().then(console.log)
 
-  var vendedor_nombre = $('#vendedor_id').find(':selected').data('vendedor_nombre');
-  if (vendedor_nombre == undefined) {
-    vendedor_nombre = '';
-  }
-  formData.append('vendedor_nombre', vendedor_nombre);
+  // vendedor_nombre ya viaja como input del formulario, lo publica el
+  // componente del selector. Antes se leia del data-* de la <option>, que solo
+  // existia porque el controller devolvia las opciones ya en HTML.
 
   var divisa_nombre = $('#divisa_id').find(':selected').data('nombre');
   formData.append('divisa_nombre', divisa_nombre);
@@ -577,57 +575,16 @@ $(document).on('click', '#btnGuardarAvance', function(event) {
   callStore(true);
 });
 
-$(document).on('keypress', '#vendedor_codigo', function(event) {
-  // event.preventDefault();
-  /* Act on the event */
-});
+// La busqueda de vendedor vive en public/js/gre/guia-vendedor.js: era un
+// $.ajax que metia los <option> que armaba el controller con .html().
 
-$(document).on('click', '#btnBuscarVendedor', function(event) {
-  event.preventDefault();
-  /* Act on the event */
-  callGetVendedor();
-
-});
-
-var callGetVendedor = () => {
-
-  var vendedor_codigo = $('#vendedor_codigo').val();
-  // console.log({vendedor_codigo});
-  var formData = new FormData();
-  formData.append('_token', _token);
-  formData.append('vendedor_codigo', vendedor_codigo);
-
-  getVendedor(formData);
-}
-
-var getVendedor = function(formData){
-  var options = {
-    type: 'POST',
-    url: route('guiaingreso.getVendedor'),
-    data:formData,
-    processData: false,
-    contentType: false,
-    dataType: 'json',
-    success: function(response){
-      $('#vendedor_id').html(response.options);
-    }
-  };
-  $.ajax(options);
-};
-
+// Enter no envia la guia: el formulario tiene un solo boton de guardar y
+// enviarla desde cualquier input era la forma facil de grabar a medias.
 $('#form_store').on('keydown', function(e) {
   var keyCode = e.keyCode || e.which;
-  var tag = e.target.tagName
-  var tag_id = e.target.id;
-  if (keyCode === 13 && tag_id !=="vendedor_codigo") {
+  if (keyCode === 13) {
     e.preventDefault();
     return false;
-  }else{
-    // console.log("Enter is ok...")
-    if (keyCode == 13) {
-      callGetVendedor();
-      
-    }
   }
 });
 

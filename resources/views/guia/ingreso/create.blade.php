@@ -57,32 +57,49 @@
               <div class="row mt-2">
                 <div class="col-md-12">
 
-                  <div class="row">
-                    <div class="col-md-2">
-                      <label class="form-label mt-2">Codigo</label>
-                    </div>
-                    <div class="col-md-6">
-                      {{-- <input class="form-control" type="text" name="b_codigo_empleado" id="b_codigo_empleado" placeholder="Codigo Empleado"> --}}
-                      <div class="input-group">
-                        <input type="text" class="form-control" id="vendedor_codigo" placeholder="Ingresar codigo" aria-describedby="button-addon2" value="{{ $guia->vendedor_id ?? '' }}">
-                        <button class="btn btn-primary" type="button" id="btnBuscarVendedor"><i class="fa fa-search"></i></button>
+                  <div x-data="greVendedor({
+                          ruta: '{{ route('guiaingreso.getVendedor') }}',
+                          codigo: '{{ $guia->vendedor_id ?? '' }}',
+                          seleccionado: '{{ $guia->vendedor_id ?? '' }}',
+                          vendedores: {{ Js::from(\App\Support\VendedorVista::lista($listVendedores)) }}
+                       })">
+
+                    <div class="row">
+                      <div class="col-md-2">
+                        <label class="form-label mt-2">Codigo</label>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="input-group">
+                          <input type="text" class="form-control" id="vendedor_codigo" placeholder="Ingresar codigo"
+                                 x-model="codigo" @keydown.enter.prevent="buscar()">
+                          <button class="btn btn-primary" type="button" id="btnBuscarVendedor"
+                                  @click="buscar()" :disabled="buscando">
+                            <i class="fa" :class="buscando ? 'fa-circle-notch fa-spin' : 'fa-search'"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="row">
-                    <div class="col-md-12">
-                      <label class="form-label">Contacto</label>
-                      <select class="form-select " name="vendedor_id" id="vendedor_id" style="width: 100%">
-                        @foreach ($listVendedores as $item)
-                          <option value="{{ $item->codTrabajador }}"
-                            data-vendedor_nombre="{{ "{$item->apellidos} {$item->nombres}" }}"
-                            {{ ($item->selected ?? '') == 'selected' ? 'selected' : '' }}>
-                            {{ "[{$item->codTrabajador}] {$item->apellidos} {$item->nombres}" }}</option>
-                        @endforeach
-                      </select>
+                    <div class="row">
+                      <div class="col-md-12">
+                        <label class="form-label">Contacto</label>
+                        <select class="form-select " name="vendedor_id" id="vendedor_id" style="width: 100%"
+                                @change="seleccionado = $event.target.value">
+                          <template x-for="v in vendedores" :key="v.codigo">
+                            <option :value="v.codigo" :selected="String(v.codigo) === seleccionado"
+                                    x-text="v.etiqueta"></option>
+                          </template>
+                        </select>
+
+                        {{-- El nombre lo pide el store. Como input del form entra
+                             solo en el FormData; antes el JS lo sacaba del
+                             data-* de la <option> elegida. --}}
+                        <input type="hidden" name="vendedor_nombre" :value="nombreVendedor()">
+
+                        <div class="form-text text-danger" x-show="mensaje" x-cloak x-text="mensaje"></div>
+                      </div>
+
                     </div>
-
                   </div>
                 </div>
                   <div class="col-md-3 mb-2">
@@ -537,6 +554,7 @@
     <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/gre/guia-form.js?v=') }}{{ rand() }}"></script>
+    <script src="{{ asset('js/gre/guia-vendedor.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/create.js?v=') }}{{ rand() }}"></script>
 
   @endpush

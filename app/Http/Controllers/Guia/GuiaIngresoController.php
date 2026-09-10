@@ -209,24 +209,20 @@ class GuiaIngresoController extends Controller
 
     public function getVendedor(Request $request)
     {
-        // dd($request->post());
+        // Esto devolvia un bloque de <option> que el JS insertaba con .html().
+        // Los atributos iban entre comillas simples, asi que un apellido con
+        // apostrofe ("O'BRIEN") cortaba la opcion y el vendedor se quedaba sin
+        // nombre; y como el nombre viajaba en un data-*, el resto del codigo
+        // tenia que volver a leerlo del DOM. Ahora devuelve datos.
         $api_datos = Parametro::find(6)->valor;
 
         $vendedor_codigo = $request->post('vendedor_codigo');
 
-        $getVendedor = Http::get("{$api_datos}/ObtenerTrabajador?CodigoTrabajador={$vendedor_codigo}")->object()->trabajador;
+        $trabajadores = Http::get("{$api_datos}/ObtenerTrabajador?CodigoTrabajador={$vendedor_codigo}")->object()->trabajador ?? [];
 
-        // $getVendedor = $getVendedor[0];
-        // dd($getVendedor);
-        $options = "";
-        foreach ($getVendedor as $item) {
-            $options .= "<option value='{$item->codTrabajador}'
-            
-                data-vendedor_nombre = '{$item->apellidos} {$item->nombres}'
-            >{$item->apellidos} {$item->nombres}</option>";
-        }
-
-        return response()->json(['options' => $options]);
+        return response()->json([
+            'vendedores' => \App\Support\VendedorVista::lista($trabajadores),
+        ]);
     }
 
 public function agregarItem(AgregarItemRequest $request)
@@ -331,20 +327,10 @@ public function agregarItem(AgregarItemRequest $request)
         return response()->json(['items' => $items]);
     }
 
-    public function formBusquedaArticulo(Request $request)
-    {
-        $tipoBusqueda = $request->post('tipo_busqueda_articulo');
-        $callSelect = true;
-        if ($tipoBusqueda == 1) {
-            $callSelect = false;
-            $form = " <input class='form-control' id='producto_valor' name='producto_valor' placeholder='Escanea un producto' autocomplete='off' autofocus>
-            ";
-        }else{
-            $form =  " <select class='form-select select_2' name='producto_select' id='producto_select' style='width: 100%' data-placeholder='Indicar un Articulo'></select>";
-        }
-
-        return response()->json(['form' => $form, 'callSelect' => $callSelect]);
-    }
+    // Aqui estaba formBusquedaArticulo(), que devolvia el <input> o el <select>
+    // del buscador como string para que el JS lo pusiera con innerHTML. El
+    // buscador ya se pinta en el Blade y cambia de modo con x-model: el
+    // endpoint se quedo sin consumidores y su ruta tambien se elimino.
 
     public function listarArticulos(Request $request)
     {
@@ -1464,6 +1450,48 @@ public function storeDataMart(Request $request)
             'lineas'  => $this->lineasParaVista($detalle),
             'igv'     => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
         ]);
+    }
+
+    /**
+     * El detalle guardado, con la forma que espera el componente de la vista.
+     *
+     * Este metodo FALTABA en ingreso. Se llama desde continuar() y desde
+     * cargarOtraGuia(), pero solo se habia escrito en GuiaSalidaController, asi
+     * que /guiaingreso/continuar/{id} respondia
+     * "Method lineasParaVista does not exist": retomar una guia guardada como
+     * avance estaba roto por completo.
+     *
+     * Las claves van en camelCase porque las consume public/js/gre/guia-detalle.js,
+     * no un Blade: son las mismas que devuelve el buscador de articulos, para
+     * que una linea recuperada y una recien buscada sean indistinguibles.
+     */
+    private function lineasParaVista($detalle): array
+    {
+        return collect($detalle)->map(function ($item) {
+            return [
+                'codArticulo'         => $item->codarticulo,
+                'codigoBarra'         => $item->codigo_barra ?? '',
+                'codPlu'              => $item->codarticulo,
+                'descripcion'         => $item->descripcion,
+                'cantidad'            => (float) $item->cantidad,
+                'precioSinIgv'        => (float) $item->precio,
+                'precioPublico'       => (float) ($item->precio_publico ?? 0),
+                'costoArticulo'       => (float) ($item->costo_articulo ?? 0),
+                'peso'                => (float) ($item->peso_unitario ?? 0),
+                'stock'               => 0,
+                'codUnidad'           => (int) ($item->cod_unidad ?? 9),
+                'descUnidadMedida'    => $item->desc_unidad_medida ?? '',
+                'siglaUmfe'           => $item->sigla_umfe ?? '',
+                'tipoIgv'             => 1,
+                'afectoIgv'           => true,
+                'porcentajeDescuento' => (float) ($item->porcentaje_descuento ?? 0),
+                // A diferencia de salida, el detalle de ingreso SI tiene
+                // columna bonificacion, y hay que respetarla: una linea
+                // bonificada no suma al total.
+                'bonificacion'        => (bool) ($item->bonificacion ?? false),
+                'esConsignado'        => (bool) ($item->es_consignado ?? false),
+            ];
+        })->values()->all();
     }
 
     public function registrarAuditoria($registro_id, $accion_id, $tabla, $data_json, $observaciones=null)

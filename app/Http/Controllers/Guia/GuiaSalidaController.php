@@ -71,112 +71,238 @@ class GuiaSalidaController extends Controller
         // dentro del bucle, una por fila.
         $estados = GuiaEstado::pluck('nombre', 'id');
 
-        $this->refrescarEstadosSunat($list, $estados);
-
+        // El estado en SUNAT ya no se consulta aqui: la tabla se pinta con lo
+        // que hay en la base y el navegador pide el refresco aparte, contra
+        // guiasalida.estadosSunat. Ver el comentario de ese metodo.
         $guias = $list->map(function ($g) use ($estados) {
-            $razonSocial = ((int) $g->indicar_proveedor === 0)
-                ? $g->cliente_razon_social
-                : $g->proveedor_nombre;
-
-            $urlPdf = ((int) $g->envio_sunat === 1)
-                ? route('guiasalida.pdfDecode', ['guia' => $g->id])
-                : route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 0]);
-
-            $estadoId = (int) $g->guia_estado_id;
-
-            return [
-                'id'           => $g->id,
-                'documento'    => $g->serie . '-' . $g->numero,
-                'serie'        => $g->serie,
-                'numero'       => (int) $g->numero,
-                'razonSocial'  => $razonSocial,
-                'fechaEmision' => $g->fecha_emision,
-                'totalVenta'   => (float) $g->total_venta,
-                'envioSunat'   => (int) $g->envio_sunat === 1,
-                'guiaEstadoId' => $estadoId,
-                'estadoNombre' => $estados[$g->guia_estado_id] ?? '',
-
-                'mostrarAnular'            => in_array($estadoId, [1, 2, 3, 5], true),
-                'mostrarGuardarDatamarket' => (int) $g->enviado_datamarket !== 1,
-                'mostrarContinuar'         => $estadoId === 4,
-                'verReintentoFacturador'   => (int) $g->envio_sunat === 1
-                                              && (int) $g->enviado_facturador === 0
-                                              && $estadoId === 1,
-
-                'urlPdf'         => $urlPdf,
-                'urlPdfValorada' => route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 1]),
-                'urlContinuar'   => route('guiasalida.continuar', ['guia' => $g->id]),
-            ];
+            return $this->filaListado($g, $estados);
         })->values();
 
         return response()->json(['procede' => true, 'guias' => $guias]);
     }
 
     /**
-     * Actualiza desde SUNAT el estado de las guias que siguen pendientes.
+     * Arma una fila del listado.
      *
-     * OJO: consulta el facturador UNA VEZ POR GUIA, en serie. Con un listado de
-     * cincuenta guias son cincuenta llamadas HTTP encadenadas, y por eso el
-     * listado tardaba lo suficiente como para necesitar un "Cargando...".
-     * Se acota a las guias que de verdad pueden cambiar de estado (emitidas y
-     * enviadas a SUNAT); moverlo a un job en segundo plano queda pendiente.
+     * Vive aparte porque el refresco de estados devuelve exactamente la misma
+     * forma: cuando una guia pasa de Generada a Aceptada no solo cambia el
+     * texto del estado, tambien cambian los botones (deja de ofrecerse
+     * "Reenviar al facturador"). Si el refresco devolviera solo el estado, esas
+     * reglas habria que repetirlas en JavaScript y se desincronizarian.
      */
-    private function refrescarEstadosSunat($list, $estados): void
+    private function filaListado($g, $estados): array
     {
-        $pendientes = $list->filter(function ($g) {
-            return (int) $g->guia_estado_id === 1 && (int) $g->envio_sunat === 1;
-        });
+        $razonSocial = ((int) $g->indicar_proveedor === 0)
+            ? $g->cliente_razon_social
+            : $g->proveedor_nombre;
 
-        if ($pendientes->isEmpty()) {
-            return;
+        $urlPdf = ((int) $g->envio_sunat === 1)
+            ? route('guiasalida.pdfDecode', ['guia' => $g->id])
+            : route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 0]);
+
+        $estadoId = (int) $g->guia_estado_id;
+
+        return [
+            'id'           => $g->id,
+            'documento'    => $g->serie . '-' . $g->numero,
+            'serie'        => $g->serie,
+            'numero'       => (int) $g->numero,
+            'razonSocial'  => $razonSocial,
+            'fechaEmision' => $g->fecha_emision,
+            'totalVenta'   => (float) $g->total_venta,
+            'envioSunat'   => (int) $g->envio_sunat === 1,
+            'guiaEstadoId' => $estadoId,
+            'estadoNombre' => $estados[$g->guia_estado_id] ?? '',
+
+            // Le dice al navegador cuales vale la pena preguntar al facturador:
+            // solo las emitidas a SUNAT que siguen sin respuesta.
+            'estadoPendiente' => $estadoId === 1 && (int) $g->envio_sunat === 1,
+
+            'mostrarAnular'            => in_array($estadoId, [1, 2, 3, 5], true),
+            'mostrarGuardarDatamarket' => (int) $g->enviado_datamarket !== 1,
+            'mostrarContinuar'         => $estadoId === 4,
+            'verReintentoFacturador'   => (int) $g->envio_sunat === 1
+                                          && (int) $g->enviado_facturador === 0
+                                          && $estadoId === 1,
+
+            'urlPdf'         => $urlPdf,
+            'urlPdfValorada' => route('guiasalida.pdf', ['guia' => $g->id, 'valorada' => 1]),
+            'urlContinuar'   => route('guiasalida.continuar', ['guia' => $g->id]),
+        ];
+    }
+
+    /** Segundos que se da por bueno el ultimo estado consultado al facturador. */
+    private const ESTADO_SUNAT_VIGENCIA = 120;
+
+    /** Guias que se consultan como maximo por peticion (una pagina del listado). */
+    private const ESTADO_SUNAT_MAXIMO = 50;
+
+    /** Consultas simultaneas contra el facturador. */
+    private const ESTADO_SUNAT_SIMULTANEAS = 5;
+
+    /**
+     * Refresca contra el facturador el estado de las guias que el usuario tiene
+     * a la vista y devuelve solo las filas que cambiaron.
+     *
+     * POR QUE ESTA SEPARADO DEL LISTADO
+     *   Antes esto ocurria dentro de listar(), una peticion HTTP por guia y en
+     *   serie: 25 guias por pagina eran 25 llamadas encadenadas antes de pintar
+     *   la primera fila (medido: 3.85 s contra un servicio que responde en
+     *   150 ms; con la latencia real del facturador es peor). La tabla no puede
+     *   depender de que SUNAT conteste.
+     *
+     * POR QUE NO UNA COLA
+     *   Esto se instala on-premise en el servidor del cliente: no hay Redis, ni
+     *   supervisor, ni nadie que arranque `queue:work`. Un job encolado que
+     *   nadie consume deja los estados congelados para siempre y sin sintoma
+     *   visible. El navegador del usuario, en cambio, siempre esta ahi.
+     *
+     * POR QUE NO UNA SOLA LLAMADA AGRUPADA
+     *   El endpoint del facturador (parametro 9) recibe un unico serienumero
+     *   por peticion; no existe consulta por lote y es un servicio de terceros.
+     *   Lo que si se puede es dejar de esperarlas de una en una: se lanzan en
+     *   grupos simultaneos.
+     *
+     * Ademas se anota cuando se consulto cada guia, porque el listado se
+     * recarga entero despues de cada accion (anular, reenviar) y sin esa marca
+     * se repetirian las mismas consultas cada pocos segundos.
+     */
+    public function estadosSunat(Request $request)
+    {
+        $ids = collect((array) $request->input('ids', []))
+            ->map(function ($id) { return (int) $id; })
+            ->filter()
+            ->unique()
+            ->take(self::ESTADO_SUNAT_MAXIMO)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['procede' => true, 'guias' => []]);
         }
 
         $urlConsulta = Parametro::find(9)->valor ?? '';
         $rucEntidad  = Parametro::find(2)->valor ?? '';
 
-        if ($urlConsulta === '') {
-            return;
+        if (trim((string) $urlConsulta) === '') {
+            return response()->json(['procede' => true, 'guias' => []]);
+        }
+
+        $vigenteDesde = Carbon::now()->subSeconds(self::ESTADO_SUNAT_VIGENCIA);
+
+        $pendientes = DB::table('guia_salidas')
+            ->whereIn('id', $ids->all())
+            ->where('activo', 1)
+            ->where('guia_estado_id', 1)
+            ->where('envio_sunat', 1)
+            ->where(function ($q) use ($vigenteDesde) {
+                $q->whereNull('estado_sunat_consultado_at')
+                  ->orWhere('estado_sunat_consultado_at', '<', $vigenteDesde);
+            })
+            ->get();
+
+        if ($pendientes->isEmpty()) {
+            return response()->json(['procede' => true, 'guias' => []]);
         }
 
         // Codigo de SUNAT -> id en la tabla guia_estados.
         $mapa = ['A' => 2, 'B' => 3, 'O' => 5];
 
-        foreach ($pendientes as $g) {
-            try {
-                $respuesta = Http::post($urlConsulta, [
-                    'rucremitente' => (string) $rucEntidad,
-                    'serienumero'  => 'T' . str_pad($g->serie, 3, '0', STR_PAD_LEFT) . '-' . $g->numero,
-                ])->object();
+        $cambiadas = [];
 
-                if (! $respuesta || ! isset($respuesta->estado) || $respuesta->estado === null) {
+        foreach ($pendientes->chunk(self::ESTADO_SUNAT_SIMULTANEAS) as $grupo) {
+            $respuestas = $this->consultarEstadosEnLote($grupo, $urlConsulta, $rucEntidad);
+
+            foreach ($grupo as $g) {
+                $cuerpo = $respuestas[(string) $g->id] ?? null;
+
+                // Se marca como consultada incluso cuando el facturador falla:
+                // si esta caido, reintentar en cada recarga solo suma esperas.
+                DB::table('guia_salidas')
+                    ->where('id', $g->id)
+                    ->update(['estado_sunat_consultado_at' => Carbon::now()]);
+
+                if (! $cuerpo || ! isset($cuerpo->estado) || $cuerpo->estado === null) {
                     continue;
                 }
 
-                $codigo = strtoupper(trim((string) $respuesta->estado));
+                $codigo = strtoupper(trim((string) $cuerpo->estado));
 
                 if (! isset($mapa[$codigo]) || $mapa[$codigo] === (int) $g->guia_estado_id) {
                     continue;
                 }
 
-                $nuevoEstado = $mapa[$codigo];
+                DB::table('guia_salidas')
+                    ->where('id', $g->id)
+                    ->update([
+                        'guia_estado_id'       => $mapa[$codigo],
+                        'mensaje_estado_sunat' => $cuerpo->mensaje ?? null,
+                        'updated_at'           => Carbon::now(),
+                    ]);
 
-                $guia = GuiaSalida::find($g->id);
-                if ($guia) {
-                    $guia->guia_estado_id = $nuevoEstado;
-                    $guia->mensaje_estado_sunat = $respuesta->mensaje ?? null;
-                    $guia->save();
-                }
-
-                $g->guia_estado_id = $nuevoEstado;
-
-            } catch (\Throwable $e) {
-                // Que SUNAT no responda no puede impedir ver el listado.
-                Log::error('Error consultando estado SUNAT', [
-                    'guia_id' => $g->id,
-                    'mensaje' => $e->getMessage(),
-                ]);
+                $g->guia_estado_id = $mapa[$codigo];
+                $cambiadas[] = $g;
             }
         }
+
+        if (empty($cambiadas)) {
+            return response()->json(['procede' => true, 'guias' => []]);
+        }
+
+        $estados = GuiaEstado::pluck('nombre', 'id');
+
+        $filas = array_map(function ($g) use ($estados) {
+            return $this->filaListado($g, $estados);
+        }, $cambiadas);
+
+        return response()->json(['procede' => true, 'guias' => $filas]);
+    }
+
+    /**
+     * Lanza las consultas de un grupo a la vez y devuelve el cuerpo de cada una
+     * indexado por id de guia.
+     *
+     * El timeout corto es deliberado: un facturador colgado no puede dejar al
+     * navegador esperando el minuto por defecto de Guzzle.
+     */
+    private function consultarEstadosEnLote($grupo, string $urlConsulta, $rucEntidad): array
+    {
+        try {
+            $respuestas = Http::pool(function ($pool) use ($grupo, $urlConsulta, $rucEntidad) {
+                $peticiones = [];
+
+                foreach ($grupo as $g) {
+                    $peticiones[] = $pool->as((string) $g->id)
+                        ->timeout(10)
+                        ->post($urlConsulta, [
+                            'rucremitente' => (string) $rucEntidad,
+                            'serienumero'  => 'T' . str_pad($g->serie, 3, '0', STR_PAD_LEFT) . '-' . $g->numero,
+                        ]);
+                }
+
+                return $peticiones;
+            });
+        } catch (\Throwable $e) {
+            Log::error('Error consultando estados SUNAT en lote', ['mensaje' => $e->getMessage()]);
+            return [];
+        }
+
+        $cuerpos = [];
+
+        foreach ($respuestas as $clave => $respuesta) {
+            // Http::pool no lanza: la excepcion de la peticion que fallo llega
+            // en el array, en el sitio de su respuesta.
+            if (! $respuesta instanceof \Illuminate\Http\Client\Response) {
+                Log::error('Error consultando estado SUNAT', [
+                    'guia_id' => $clave,
+                    'mensaje' => $respuesta instanceof \Throwable ? $respuesta->getMessage() : 'respuesta no valida',
+                ]);
+                continue;
+            }
+
+            $cuerpos[(string) $clave] = $respuesta->object();
+        }
+
+        return $cuerpos;
     }
 
     public function getSerie(Request $request)
@@ -407,40 +533,26 @@ class GuiaSalidaController extends Controller
 
     public function getVendedor(Request $request)
     {
-        // dd($request->post());
+        // Esto devolvia un bloque de <option> que el JS insertaba con .html().
+        // Los atributos iban entre comillas simples, asi que un apellido con
+        // apostrofe ("O'BRIEN") cortaba la opcion y el vendedor se quedaba sin
+        // nombre; y como el nombre viajaba en un data-*, el resto del codigo
+        // tenia que volver a leerlo del DOM. Ahora devuelve datos.
         $api_datos = Parametro::find(6)->valor;
 
         $vendedor_codigo = $request->post('vendedor_codigo');
 
-        $getVendedor = Http::get("{$api_datos}/ObtenerTrabajador?CodigoTrabajador={$vendedor_codigo}")->object()->trabajador;
+        $trabajadores = Http::get("{$api_datos}/ObtenerTrabajador?CodigoTrabajador={$vendedor_codigo}")->object()->trabajador ?? [];
 
-        // $getVendedor = $getVendedor[0];
-        // dd($getVendedor);
-        $options = "";
-        foreach ($getVendedor as $item) {
-            $options .= "<option value='{$item->codTrabajador}'
-
-                data-vendedor_nombre = '{$item->apellidos} {$item->nombres}'
-            >{$item->apellidos} {$item->nombres}</option>";
-        }
-
-        return response()->json(['options' => $options]);
+        return response()->json([
+            'vendedores' => \App\Support\VendedorVista::lista($trabajadores),
+        ]);
     }
 
-    public function formBusquedaArticulo(Request $request)
-    {
-        $tipoBusqueda = $request->post('tipo_busqueda_articulo');
-        $callSelect = true;
-        if ($tipoBusqueda == 1) {
-            $callSelect = false;
-            $form = " <input class='form-control' id='producto_valor' name='producto_valor' placeholder='Escanea un producto' autocomplete='off' autofocus>
-            ";
-        }else{
-            $form =  " <select class='form-select select_2' name='producto_select' id='producto_select' style='width: 100%' data-placeholder='Indicar un Articulo'></select>";
-        }
-
-        return response()->json(['form' => $form, 'callSelect' => $callSelect]);
-    }
+    // Aqui estaba formBusquedaArticulo(), que devolvia el <input> o el <select>
+    // del buscador como string para que el JS lo pusiera con innerHTML. El
+    // buscador ya se pinta en el Blade y cambia de modo con x-model: el
+    // endpoint se quedo sin consumidores y su ruta tambien se elimino.
 
     public function listarArticulos(Request $request)
     {
