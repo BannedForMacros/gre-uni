@@ -68,9 +68,6 @@ var buscarArticuloBarra = function (formData) {
 
       if (response.procede == true) {
         var data = response.getArticulo
-        console.log("--- DEBUG BUSQUEDA BARRA ---");
-        console.log("Data recibida del servidor:", data);
-        console.log("Costo Articulo desde DB:", data.costo_articulo);
         
         $('#producto_id').val(data.codArticulo);
         $('#producto_codigo_barra').val(data.codBarra);
@@ -111,12 +108,8 @@ var buscarArticuloBarra = function (formData) {
 
 $(document).on('change', '#producto_select', function(event) {
   event.preventDefault();
-  console.log('seleccion de producto');
   var data = $("#producto_select").select2('data')[0];
   
-  console.log("--- DEBUG SELECT2 ---");
-  console.log("Data seleccionada:", data);
-  console.log("Costo Articulo en data:", data.costo_articulo);
 
   $('#producto_id').val(data.id);
   $('#producto_codigo_barra').val(data.codigo_barra);
@@ -130,7 +123,6 @@ $(document).on('change', '#producto_select', function(event) {
   $('#producto_costo_articulo').val(data.costo_articulo);
   $('#producto_tipo_igv').val(data.tipo_igv);
 
-console.log("TIPO IGV (select2):", $('#producto_tipo_igv').val(), data.tipo_igv, data);
 
   callAgregarItem();
 });
@@ -177,14 +169,10 @@ var callAgregarItem = () => {
 
   
   // --- INICIO DEBUG LOGICA DE PRECIOS ---
-  console.log("=== DEBUG callAgregarItem ===");
-  console.log("1. Valor en input Costo (#producto_costo_articulo):", costo_articulo);
-  console.log("2. Valor en input Precio Público:", precio_publico);
   
   // LÓGICA: Si hay costo mayor a 0, usar costo. Si no, usar precio público.
   var precio_visual = (costo_articulo && parseFloat(costo_articulo) > 0) ? costo_articulo : precio_publico;
   
-  console.log("3. Precio Visual CALCULADO (A enviar):", precio_visual);
 
   formData.append('costo_articulo', costo_articulo);
   formData.append('precio_visual', precio_visual); // <--- ESTO ES LO QUE DEBE RECIBIR PHP
@@ -212,8 +200,6 @@ var agregarItem = function(formData){
     dataType: 'json',
     success: function(response){
       
-      console.log("=== RESPUESTA SERVIDOR AGREGAR ITEM ===");
-      console.log("HTML Recibido (response.tr):", response.tr);
 
       if (response.procede == true) {
         $('#tbody').append(response.tr);

@@ -20,7 +20,6 @@ var verificarStorage = () => {
       allowOutsideClick: false
       // reverseButtons: !0
     }).then((result) => {
-      console.log(result);
       if (result.isConfirmed) {
         // console.log(localStorage.getItem('storageGuiaIngreso'));
         // console.log('cargamos el storage en form');
@@ -44,7 +43,6 @@ var updateLocalStorage = () => {
   var formData = new FormData(formElement);
   
   var vendedor_nombre = $('#vendedor_id').find(':selected').data('vendedor_nombre');
-  console.log({vendedor_nombre});
   if (vendedor_nombre == undefined) {
     vendedor_nombre = '';
   }
@@ -56,7 +54,6 @@ var updateLocalStorage = () => {
   var data_proveedor = $('#proveedor_id').select2('data')[0];
   var data_proveedor_2 = $('#proveedor_id').data();
 
-  console.log({data_proveedor, data_proveedor_2});
   if (data_proveedor != null) {
     
     var proveedor_nombre = data_proveedor.proveedor_nombre;
@@ -125,9 +122,7 @@ var updateLocalStorage = () => {
 var cargarStorage = () => {
 
   var storage = JSON.parse(localStorage.getItem('storageGuiaIngreso'));
-  console.log({storage});
   var detalle = JSON.parse(storage.detalle);
-  console.log({ detalle });
 
   // serie
   $('#serie').val(storage.serie);
@@ -174,7 +169,6 @@ var cargarStorage = () => {
   $('#cod_almacen_destino').val(storage.cod_almacen_destino)
 
   $.map(detalle, function (element, index) {
-    console.log(element);
     var importe = round((element.cantidad * element.precio_publico),2);
     $('#tbody').prepend(`
       <tr 

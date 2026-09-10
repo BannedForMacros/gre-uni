@@ -245,6 +245,21 @@
 
         </form>
 
+        {{-- ------------------------------------------------------------------
+             Scope de Alpine para el detalle de la guia.
+             El estado (lineas + tasa de IGV) vive aqui, no en atributos data-*
+             de cada <tr> como antes. Los totales se derivan solos.
+             ------------------------------------------------------------------ --}}
+        <div x-data="greDetalleGuia({
+                lineas: {{ Js::from($lineasDetalle ?? []) }},
+                tasaIgv: {{ config('gre.igv.tasa', 0.18) }},
+                rutas: {
+                    agregarItem:    '{{ route('guiaingreso.agregarItem') }}',
+                    cargarOtraGuia: '{{ route('guiaingreso.cargarOtraGuia') }}'
+                }
+             })"
+             x-cloak>
+
         <div class="row mt-4">
           <div class="row">
             <div class="col-md-2">
@@ -323,45 +338,42 @@
                     <th class="text-center">Accion</th>
                   </thead>
                   <tbody id="tbody">
-                    @foreach (($detalle ?? []) as $item)
-                      <tr 
-                        data-producto_id='{{ $item->codarticulo }}'
-                        data-precio_publico='{{ $item->precio_publico }}'
-                        data-precio_sin_igv='{{ $item->precio_sin_igv }}' 
-                        data-descripcion='{{ $item->descripcion }}'
-                        data-codigo='{{ $item->codarticulo }}'
-                        data-codigo_barra='{{ $item->codigo_barra }}'
-                        data-peso='{{ $item->peso }}'
-                        data-costo_con_igv='{{ $item->precio }}'
-                        data-costo_sin_igv='{{ round($item->precio / 1.18, 2) }}'
-                        data-tipo_igv='{{ $item->tipo_igv ?? 1 }}'
-
-
-                      >
-                        <td class='align-middle'>{{ $item->codigo_barra }}</td>
-                        <td class='align-middle'>{{ $item->codarticulo }}</td>
-                        <td class='align-middle'>{{ $item->codarticulo }}</td>
-                        <td class='align-middle'>{{ $item->descripcion }}</td>
-                        <td class='align-middle'><span name='span_precio'>{{ $item->precio }}</span></td>
-                        <td class='align-middle'>
-                          {!! "<input class='form-control form-control-sm input_cantidad_tr' name='cantidad' value='{$item->cantidad}'></input>" !!}
+                    {{-- El estado vive en el componente, no en atributos data-* del DOM. --}}
+                    <template x-for="(l, i) in lineas" :key="l.codArticulo">
+                      <tr>
+                        <td class="align-middle" x-text="l.codigoBarra"></td>
+                        <td class="align-middle" x-text="l.codArticulo"></td>
+                        <td class="align-middle" x-text="l.codPlu"></td>
+                        <td class="align-middle" x-text="l.descripcion"></td>
+                        <td class="align-middle text-end" x-text="money(precioMostrado(l))"></td>
+                        <td class="align-middle">
+                          <input type="number" min="0.01" step="any"
+                                 class="form-control form-control-sm"
+                                 x-model.number="l.cantidad">
                         </td>
-                        <td class='align-middle'>UNI</td>
-                        <td class='align-middle'><span name='span_importe'>{{ $item->importe }}</span></td>
-                        <td class='align-middle'>
-                          {{-- {$inputPorcentajeDescuento}  --}}
-                          <input class='form-control form-control-sm input_porcentaje_descuento_tr' name='porcentaje_descuento' value='{{ $item->porcentaje_descuento }}'></input>
-                          {{-- {$inputDescuento} --}}
-                          <input type='hidden' name='monto_descuento' value='{{ $item->monto_descuento }}'></input>
+                        <td class="align-middle" x-text="l.descUnidadMedida || 'UNI'"></td>
+                        <td class="align-middle text-end" x-text="money(importeMostrado(l))"></td>
+                        <td class="align-middle">
+                          <input type="number" min="0" max="100" step="any"
+                                 class="form-control form-control-sm"
+                                 x-model.number="l.porcentajeDescuento">
                         </td>
-                        <td class='align-middle' style='text-align:center'>
-                          <input class='bonificacion'  {{ (($item->bonificacion ?? '') == 1) ? 'checked' : '' ; }} type='checkbox' name='bonificacion'>
+                        <td class="align-middle text-center">
+                          <input class="form-check-input" type="checkbox" x-model="l.bonificacion">
                         </td>
-                        <td class='align-middle text-center'>
-                          <button class='btn btn-danger btn-sm delete_item'><i class='fa fa-times-circle'></i></button>
+                        <td class="align-middle text-center">
+                          <button type="button" class="btn btn-danger btn-sm" @click="quitar(i)">
+                            <i class="fa fa-times-circle"></i>
+                          </button>
                         </td>
                       </tr>
-                    @endforeach
+                    </template>
+
+                    <tr x-show="!hayLineas">
+                      <td colspan="11" class="text-center text-muted py-3">
+                        Agregue artículos al detalle.
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -385,19 +397,19 @@
                 <div class="row">
                   <div class="col-md-3">
                     <label class="form-label">Descuento</label>
-                    <input class="form-control" type="text" id="monto_descuento" readonly>
+                    <input class="form-control text-end" type="text" id="monto_descuento" readonly :value="money(montoDescuento)">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">Valor Venta</label>
-                    <input class="form-control" type="text" id="importe_sin_igv" readonly>
+                    <input class="form-control text-end" type="text" id="importe_sin_igv" readonly :value="money(valorVenta)">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">IGV</label>
-                    <input class="form-control" type="text" id="monto_igv" readonly>
+                    <input class="form-control text-end" type="text" id="monto_igv" readonly :value="money(montoIgv)">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">Total Venta</label>
-                    <input class="form-control" type="text" id="total_venta" readonly>
+                    <input class="form-control text-end" type="text" id="total_venta" readonly :value="money(totalVenta)">
                   </div>
                 </div>
               </div>
@@ -407,11 +419,11 @@
                 <div class="row">
                   <div class="col-md-3">
                     <label class="form-label">Item(s)</label>
-                    <input class="form-control" type="text" id="total_items" readonly>
+                    <input class="form-control" type="text" id="total_items" readonly :value="totalItems">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label">Cantidad</label>
-                    <input class="form-control" type="text" id="total_cantidad" readonly>
+                    <input class="form-control" type="text" id="total_cantidad" readonly :value="totalCantidad">
                   </div>
                   {{-- <div class="col-md-3">
                     <label class="form-label">Flete</label>
@@ -419,7 +431,7 @@
                   </div> --}}
                   <div class="col-md-3">
                     <label class="form-label">Base Calculo</label>
-                    <select class="form-select" name="base_calculo" id="base_calculo">
+                    <select class="form-select" name="base_calculo" id="base_calculo" x-model.number="baseCalculo">
                       <option value="2" {{ (($guia->base_calculo ?? '') == 2) ? 'selected' : '' ; }}>Con IGV</option>
                       <option value="1" {{ (($guia->base_calculo ?? '') == 1) ? 'selected' : '' ; }}>Sin IGV</option>
                     </select>
@@ -459,10 +471,15 @@
       </div>
     </div>
 
+    </div>{{-- /x-data greDetalleGuia --}}
     <div id="modales"></div>
   </div>
 
   @push('js-scripts')
+    {{-- Alpine 3: 15 KB, sin build. defer es obligatorio. --}}
+    <script defer src="{{ asset('js/vendor/alpine.min.js') }}"></script>
+    <script src="{{ asset('js/gre/http.js?v=') }}{{ rand() }}"></script>
+    <script src="{{ asset('js/gre/guia-detalle.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/create.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/articulo.js?v=') }}{{ rand() }}"></script>
     <script src="{{ asset('js/guias/ingreso/storage.js?v=') }}{{ rand() }}"></script>

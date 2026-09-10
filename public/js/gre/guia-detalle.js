@@ -9,18 +9,49 @@
  * Ahora `lineas` es un array de objetos y el HTML se pinta desde el. Los
  * totales se recalculan solos: no hay que acordarse de llamar a nada.
  *
- * Alpine 3 · sin build · 15 KB · compatible con Chrome 49+ (techo de Windows 7).
+ * Alpine 3 · sin build · 15 KB. Chrome 109 es el ultimo que soporta Windows 7,
+ * y es de 2023: cubre de sobra lo que Alpine necesita.
  */
 window.greDetalleGuia = function (config) {
     config = config || {};
 
     return {
         lineas: config.lineas || [],
+
+        /**
+         * Puente hacia el JS que todavia no se migro (busqueda de articulos,
+         * series, proveedor). Alpine no expone el componente por si solo, asi
+         * que se registra aqui. Cuando esos archivos se migren, este init y la
+         * referencia global desaparecen.
+         */
+        init: function () {
+            window.greDetalle = this;
+        },
+
         tasaIgv: typeof config.tasaIgv === 'number' ? config.tasaIgv : 0.18,
+
+        /** 1 = mostrar precios sin IGV · 2 = mostrarlos con IGV. Solo afecta lo
+         *  que se ve: los importes que se guardan van SIEMPRE sin IGV. */
+        baseCalculo: config.baseCalculo || 1,
         rutas: config.rutas || {},
         guardando: false,
 
         // ---------- derivados: se recalculan solos ----------
+
+        /**
+         * Precio a MOSTRAR segun la base de calculo elegida.
+         * Un articulo inafecto se muestra igual en ambas bases.
+         */
+        precioMostrado: function (l) {
+            if (this.baseCalculo === 2 && l.afectoIgv) {
+                return this.redondear((Number(l.precioSinIgv) || 0) * (1 + this.tasaIgv));
+            }
+            return this.redondear(l.precioSinIgv);
+        },
+
+        importeMostrado: function (l) {
+            return this.redondear(this.precioMostrado(l) * (Number(l.cantidad) || 0));
+        },
 
         importeDeLinea: function (l) {
             var bruto = (Number(l.cantidad) || 0) * (Number(l.precioSinIgv) || 0);
@@ -74,6 +105,40 @@ window.greDetalleGuia = function (config) {
 
         get totalVenta() {
             return this.redondear(this.valorVenta + this.montoIgv);
+        },
+
+        get totalItems() {
+            return this.lineas.length;
+        },
+
+        get totalCantidad() {
+            var t = 0;
+            for (var i = 0; i < this.lineas.length; i++) {
+                t += Number(this.lineas[i].cantidad) || 0;
+            }
+            return this.redondear(t);
+        },
+
+        /** Monto de descuento acumulado, para la cabecera. */
+        get montoDescuento() {
+            var t = 0;
+            for (var i = 0; i < this.lineas.length; i++) {
+                t += this.descuentoDeLinea(this.lineas[i]);
+            }
+            return this.redondear(t);
+        },
+
+        descuentoDeLinea: function (l) {
+            var bruto = (Number(l.cantidad) || 0) * (Number(l.precioSinIgv) || 0);
+            return this.redondear(bruto * ((Number(l.porcentajeDescuento) || 0) / 100));
+        },
+
+        get pesoTotal() {
+            var t = 0;
+            for (var i = 0; i < this.lineas.length; i++) {
+                t += (Number(this.lineas[i].peso) || 0) * (Number(this.lineas[i].cantidad) || 0);
+            }
+            return this.redondear(t);
         },
 
         get hayLineas() {
@@ -146,10 +211,7 @@ window.greDetalleGuia = function (config) {
                     precio: Number(l.precioSinIgv) || 0,
                     importe: self.importeDeLinea(l),
                     porcentaje_descuento: Number(l.porcentajeDescuento) || 0,
-                    monto_descuento: self.redondear(
-                        (Number(l.cantidad) || 0) * (Number(l.precioSinIgv) || 0) *
-                        ((Number(l.porcentajeDescuento) || 0) / 100)
-                    ),
+                    monto_descuento: self.descuentoDeLinea(l),
                     cod_unidad: l.codUnidad,
                     desc_unidad_medida: l.descUnidadMedida,
                     sigla_umfe: l.siglaUmfe,

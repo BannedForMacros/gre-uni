@@ -6,7 +6,7 @@
  * donde decidir que hacer cuando la ApiGRE no responde, asi que en la practica
  * varios errores se ignoraban en silencio.
  *
- * Compatible con Chrome 49+ (el techo de Windows 7): sin async/await, sin fetch.
+ * Sin async/await ni fetch: jQuery Deferred, que ya esta cargado en la app.
  */
 window.Gre = window.Gre || {};
 

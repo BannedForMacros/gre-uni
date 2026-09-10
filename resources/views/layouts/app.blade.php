@@ -37,6 +37,7 @@
     var APP_URL = {!! json_encode(url('/')) !!}
     const _token = $('meta[name="csrf-token"]').attr('content');
   </script>
+    <style>[x-cloak]{display:none!important}</style>
 </head>
 
 <body>

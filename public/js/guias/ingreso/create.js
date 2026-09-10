@@ -73,7 +73,6 @@ var getSerie = function(formData){
     contentType: false,
     dataType: 'json',
     success: function(response){
-      console.log({response});
       var serie = response.getSerie;
       $('#numero').val(serie.nuevo_numero);
       updateLocalStorage();
@@ -172,8 +171,6 @@ $(document).on('change', '#proveedor_id', function(event) {
   event.preventDefault();
   /* Act on the event */
   var data = $('#proveedor_id').select2('data')[0];
-  console.log({data});
-
   $('#proveedor_nombre').val(data.proveedor_nombre);
   $('#proveedor_ruc').val(data.proveedor_ruc);
 
@@ -235,84 +232,16 @@ $(document).on('keyup', '.input_porcentaje_descuento_tr', function(event) {
   }, 300);
 });
 
+/**
+ * Los totales los calcula el componente (public/js/gre/guia-detalle.js) y
+ * Alpine los pinta solos. Esto queda solo para el localStorage, que todavia
+ * no se migro.
+ *
+ * Antes eran 83 lineas que recorrian las filas del <tbody> leyendo atributos
+ * data-*, con el 0.18 escrito a mano y aplicando el IGV sobre la suma de las
+ * bases. Eso daba un centimo de diferencia contra el calculo de PHP.
+ */
 var calcularTotales = () => {
-
-  var base_calculo = $('#base_calculo').val(); // 1 sin igv, 2 con igv (solo visual)
-
-  var items = $('#tbody tr').map(function(i, row) {
-    var bonificacion = $(this).find('input[name=bonificacion]').prop('checked');
-    if (bonificacion == false) {
-      return {
-        producto_id: $(this).data('producto_id'),
-        cantidad: parseFloat($(this).find('input[name=cantidad]').val() || 0),
-
-        importe_visual: parseFloat($(this).find('span[name=span_importe]').text() || 0),
-
-        porcentaje_descuento: $(this).find('input[name=porcentaje_descuento]').val(),
-        monto_descuento: parseFloat($(this).find('input[name=monto_descuento]').val() || 0),
-
-        peso: parseFloat($(this).data('peso') || 0),
-
-        tipo_igv: parseInt($(this).data('tipo_igv') || 0),
-        costo_sin_igv: parseFloat($(this).data('costo_sin_igv') || 0),
-      };
-    }
-  }).get();
-
-  var total_items = items.length;
-
-  var total_cantidad = 0;
-  var monto_descuento = 0;
-  var peso_total = 0;
-
-  // ✅ Importante: mantener acumuladores como NUMBER (no string)
-  var valor_venta_num = 0;   // base SIN IGV (number)
-  var base_afecta_num = 0;   // solo afectos tipo_igv==1 (number)
-
-  items.forEach(function (el, idx) {
-
-    total_cantidad += el.cantidad;
-    peso_total += (el.peso * el.cantidad);
-
-    // round() devuelve STRING, por eso lo convertimos a number
-    var importe_sin_igv_str = round(el.costo_sin_igv * el.cantidad, 2);
-    var importe_sin_igv_num = parseFloat(importe_sin_igv_str) || 0;
-
-    if (el.porcentaje_descuento != '') {
-      monto_descuento += el.monto_descuento;
-
-      // ojo: descuento también puede producir string si lo pasas por round
-      importe_sin_igv_num = (importe_sin_igv_num - (parseFloat(el.monto_descuento) || 0));
-      // si quieres “cortar” a 2 decimales sin romper tipos:
-      importe_sin_igv_num = parseFloat(round(importe_sin_igv_num, 2)) || 0;
-    }
-
-    // ✅ sumas reales (number + number)
-    valor_venta_num += importe_sin_igv_num;
-
-    if (el.tipo_igv === 1) {
-      base_afecta_num += importe_sin_igv_num;
-    }
-  });
-
-  // ✅ Si quieres seguir usando round() para mostrar, conviertes a number primero:
-  valor_venta_num = parseFloat(round(valor_venta_num, 2)) || 0;
-  monto_descuento = parseFloat(round(monto_descuento, 2)) || 0;
-
-  var monto_igv_num = parseFloat(round(base_afecta_num * 0.18, 2)) || 0;
-  var total_venta_num = parseFloat(round(valor_venta_num + monto_igv_num, 2)) || 0;
-
-  // ✅ set inputs cabecera (si quieres strings con 2 decimales para mostrar)
-  $('#total_items').val(total_items);
-  $('#total_cantidad').val(total_cantidad);
-
-  $('#importe_sin_igv').val(valor_venta_num.toFixed(2));
-  $('#monto_igv').val(monto_igv_num.toFixed(2));
-  $('#total_venta').val(total_venta_num.toFixed(2));
-
-  $('#monto_descuento').val(monto_descuento.toFixed(2));
-  $('#peso_bruto_total').val((parseFloat(round(peso_total, 2)) || 0).toFixed(2));
-
   updateLocalStorage();
 }
 
@@ -336,38 +265,7 @@ var callStore = (guardar_avance = false) => {
   const esConsignadoMaster = $('#es_consignado_master').is(':checked') ? 1 : 0; // <--- NUEVO
   formData.append('es_consignado', esConsignadoMaster); // <--- NUEVO: Para asegurar que vaya en la cabecera también
 
-  var items = $('#tbody tr').map(function(i, row) {
-      var cantidad = parseFloat($(this).find('input[name=cantidad]').val() || 0);
-      var costo_sin_igv = parseFloat($(this).data('costo_sin_igv') || 0);
-      var tipo_igv = parseInt($(this).data('tipo_igv') || 0);
-
-      // ✅ precio/importe que se GUARDAN SIEMPRE SIN IGV
-      var precio_guardar = round(costo_sin_igv, 2);
-      var importe_guardar = round(costo_sin_igv * cantidad, 2);
-      return {
-        codarticulo : $(this).data('producto_id'),
-        precio : precio_guardar,
-        cantidad : cantidad,
-        importe : importe_guardar,
-
-        porcentaje_descuento : $(this).find('input[name=porcentaje_descuento]').val(),
-        monto_descuento : parseFloat($(this).find('input[name=monto_descuento]').val() || 0),
-
-        descripcion : $(this).data('descripcion'),
-        codigo : $(this).data('codigo'),
-        precio_publico : $(this).data('precio_publico'),
-        precio_sin_igv : $(this).data('precio_sin_igv'),
-        codigo_barra : $(this).data('codigo_barra'),
-        cod_unidad : $(this).data('cod_unidad'),
-        desc_unidad_medida : $(this).data('desc_unidad_medida'),
-        sigla_umfe : $(this).data('sigla_umfe'),
-
-        costo_articulo : $(this).data('costo_articulo'),
-
-        tipo_igv: tipo_igv, // ✅ opcional, por si luego lo guardas
-        es_consignado: esConsignadoMaster
-      };
-    }).get();
+  var items = (window.greDetalle ? window.greDetalle.detalleParaEnviar() : []);
 
 
 
@@ -387,8 +285,6 @@ var callStore = (guardar_avance = false) => {
   var comentario = $('#comentario').val();
   var data_proveedor = $('#proveedor_id').select2('data')[0];
   var data_proveedor_2 = $('#proveedor_id').data();
-
-  console.log({data_proveedor, data_proveedor_2});
   if (data_proveedor != null) {
     
     var proveedor_nombre = data_proveedor.proveedor_nombre;
@@ -399,7 +295,6 @@ var callStore = (guardar_avance = false) => {
   // new Response(formData).text().then(console.log)
 
   var vendedor_nombre = $('#vendedor_id').find(':selected').data('vendedor_nombre');
-  console.log({vendedor_nombre});
   if (vendedor_nombre == undefined) {
     vendedor_nombre = '';
   }
@@ -433,10 +328,6 @@ var callStore = (guardar_avance = false) => {
   var procede_store = true;
   var msj_store = '';
   new Response(formData).text().then(console.log)
-  console.log(formData.get('proveedor_nombre'));
-
-
-
   if (formData.get('guardar_avance') == 'false') {
     
     if (formData.get('vendedor_nombre') == '') {
@@ -680,34 +571,9 @@ $(document).on('change', '#es_consignado_master', function(event) {
     updateLocalStorage();
 });
 
-$(document).on('change', '#base_calculo', function (event) {
-  event.preventDefault();
-
-  var base_calculo = $(this).val(); // 2 con IGV, 1 sin IGV
-
-  $('#tbody tr').each(function () {
-
-    var cantidad = parseFloat($(this).find('input[name=cantidad]').val() || 0);
-
-    var tipo_igv = parseInt($(this).data('tipo_igv') || 0);
-
-    var costo_con_igv = parseFloat($(this).data('costo_con_igv') || 0);
-    var costo_sin_igv = parseFloat($(this).data('costo_sin_igv') || 0);
-
-    if (tipo_igv !== 1) {
-      costo_con_igv = costo_sin_igv;
-    }
-
-    var precio_unitario = (base_calculo == 1) ? costo_sin_igv : costo_con_igv;
-
-    $(this).find('span[name=span_precio]').html(precio_unitario);
-
-    var importe = round((precio_unitario * cantidad), 2);
-    $(this).find('span[name=span_importe]').html(importe);
-  });
-
-  calcularTotales();
-});
+// El cambio de base de calculo (con/sin IGV) lo maneja el componente:
+// baseCalculo es una propiedad y precioMostrado() deriva de ella.
+// Antes eran 25 lineas recorriendo el <tbody> y reescribiendo <span> a mano.
 
 
 
@@ -719,10 +585,7 @@ $(document).on('click', '#btnGuardarAvance', function(event) {
 
 $(document).on('keypress', '#vendedor_codigo', function(event) {
   // event.preventDefault();
-  console.log('enter');
   /* Act on the event */
-  console.log(event.keyCode);
-
 });
 
 $(document).on('click', '#btnBuscarVendedor', function(event) {
@@ -763,11 +626,7 @@ $('#form_store').on('keydown', function(e) {
   var keyCode = e.keyCode || e.which;
   var tag = e.target.tagName
   var tag_id = e.target.id;
-
-  console.log({keyCode, tag});
-  console.log(e.target.id);
   if (keyCode === 13 && tag_id !=="vendedor_codigo") {
-    console.log("Enter prevented")
     e.preventDefault();
     return false;
   }else{

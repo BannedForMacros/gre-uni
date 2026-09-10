@@ -107,7 +107,9 @@ class GuiaIngresoController extends Controller
 
         $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros;
 
-        return view('guia.ingreso.create', compact('listProveedores', 'listFormasPago', 'listTipoOperacion', 'listAlmacenes', 'listArticulos', 'listVendedores', 'listSeries'));
+        $lineasDetalle = [];
+
+        return view('guia.ingreso.create', compact('listProveedores', 'listFormasPago', 'listTipoOperacion', 'listAlmacenes', 'listArticulos', 'listVendedores', 'listSeries', 'lineasDetalle'));
     }
 
     public function getSerie(Request $request)
@@ -188,7 +190,9 @@ class GuiaIngresoController extends Controller
         $detalle = GuiaIngresoDetalle::where('guia_ingreso_id', $guia->id)->get();
         // dd($detalle);
         
-        return view('guia.ingreso.create', compact('guia','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listAlmacenes', 'listArticulos', 'listVendedores', 'detalle'));
+        $lineasDetalle = $this->lineasParaVista($detalle);
+
+        return view('guia.ingreso.create', compact('guia','listProveedores', 'listFormasPago', 'listTipoOperacion', 'listAlmacenes', 'listArticulos', 'listVendedores', 'detalle', 'lineasDetalle'));
     }
 
     public function getVendedor(Request $request)
@@ -1328,39 +1332,12 @@ public function storeDataMart(Request $request)
 
     public function cargarOtraGuia(Request $request)
     {
-        // Segunda copia del mismo constructor de <tr>, con el mismo bug del
-        // apostrofe. Ahora devuelve las lineas como datos, en el mismo formato
-        // que agregarItem, para que la vista las pinte igual.
-        $id = $request->post('id');
-
-        $detalle = GuiaIngresoDetalle::where('guia_ingreso_id', $id)->get();
+        $detalle = GuiaIngresoDetalle::where('guia_ingreso_id', $request->post('id'))->get();
         $igv     = Igv::vigente();
-
-        $lineas = $detalle->map(function ($item) {
-            return [
-                'codArticulo'         => $item->codarticulo,
-                'codigoBarra'         => $item->codigo_barra ?? '',
-                'codPlu'              => $item->codarticulo,
-                'descripcion'         => $item->descripcion,
-                'cantidad'            => (float) $item->cantidad,
-                'precioSinIgv'        => (float) $item->precio,
-                'precioPublico'       => (float) ($item->precio_publico ?? 0),
-                'costoArticulo'       => (float) ($item->costo_articulo ?? 0),
-                'peso'                => (float) ($item->peso_unitario ?? 0),
-                'codUnidad'           => (int) ($item->cod_unidad ?? 9),
-                'descUnidadMedida'    => $item->desc_unidad_medida ?? '',
-                'siglaUmfe'           => $item->sigla_umfe ?? '',
-                'tipoIgv'             => 1,
-                'afectoIgv'           => true,
-                'porcentajeDescuento' => (float) ($item->porcentaje_descuento ?? 0),
-                'bonificacion'        => (bool) ($item->bonificacion ?? false),
-                'esConsignado'        => (bool) ($item->es_consignado ?? false),
-            ];
-        })->values();
 
         return response()->json([
             'procede' => true,
-            'lineas'  => $lineas,
+            'lineas'  => $this->lineasParaVista($detalle),
             'igv'     => ['tasa' => $igv->tasa(), 'porcentaje' => $igv->porcentaje()],
         ]);
     }
