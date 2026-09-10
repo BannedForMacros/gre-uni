@@ -788,3 +788,17 @@
   .gre-barra-total { width: 100%; order: -1; margin-left: 0; }
   .gre-seccion-nota { display: none; }
 }
+
+/* --- Subtitulo dentro de una seccion ---------------------------------------
+   Partida y llegada son dos bloques con los MISMOS cuatro campos, uno al lado
+   del otro. Sin un rotulo que los separe se leen como ocho campos sueltos y es
+   facil escribir el destino en el origen. */
+.gre-subtitulo {
+  margin: .25rem 0 .625rem;
+  padding-bottom: .375rem;
+  border-bottom: 1px solid var(--gre-borde-tenue);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: var(--gre-texto);
+}

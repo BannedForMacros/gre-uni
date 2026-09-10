@@ -1,3 +1,12 @@
+// Los buscadores de cliente, transportista y proveedor ya no son select2.
+//
+// Eran tres select2 de jQuery conviviendo con un buscador de articulos escrito
+// con Alpine: cuatro cajas de busqueda con tres aspectos distintos en la misma
+// pantalla. Ahora los tres usan el mismo componente que el de ingreso
+// (public/js/gre/guia-combo.js) y rellenan sus campos ocultos desde la vista,
+// asi que aqui desaparecen las inicializaciones, los handlers de change y las
+// lecturas de select2('data') que ya no leia nadie.
+
 $(document).ready(function () {
   setTimeout(() => {
     $('.select_2').select2({
@@ -6,9 +15,6 @@ $(document).ready(function () {
       placeholder: $(this).data('placeholder'),
     });
     // callListarArticulos();
-    callListarClientes();
-    callListarTransportistas();
-    callListarProveedores();
     callBrevete();
     callIndicarProveedor();
     callGetSerie();
@@ -103,137 +109,12 @@ var callListarArticulos = () => {
 
 }
 
-var callListarClientes = () => {
 
 
-  $(`#cliente_id`).select2({
-    theme: "bootstrap-5",
-    containerCssClass: "select2--small",
-    dropdownCssClass: "select2--small",
-    ajax: {
-      url: route('guiasalida.listarClientes'),
-      // type: 'POST',
-      data: function (params) {
-        var tipo_busqueda_cliente = $('#tipo_busqueda_cliente').val();
-        var query = {
-          term: params.term,
-          tipo_busqueda_cliente: tipo_busqueda_cliente,
-          _token: _token,
-        }
-        return query;
-      },
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        // console.log(data.items);
-        return {
-          results : data.items
-          // results: $.map(data.items, function (obj) {
 
-          //   return { id: obj.id, text: obj.name,  };
-          // })
-        };
-      },
-      // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
-    }
-  });
 
-}
 
-var callListarTransportistas = () => {
 
-  $(`#transportista_id`).select2({
-    theme: "bootstrap-5",
-    containerCssClass: "select2--small",
-    dropdownCssClass: "select2--small",
-    ajax: {
-      url: route('guiasalida.listarTransportistas'),
-      // type: 'POST',
-      data: function (params) {
-
-        var query = {
-          term: params.term,
-          _token: _token,
-        }
-        return query;
-      },
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        // console.log(data.items);
-        return {
-          results : data.items
-          // results: $.map(data.items, function (obj) {
-
-          //   return { id: obj.id, text: obj.name,  };
-          // })
-        };
-      },
-      // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
-    }
-  });
-
-}
-
-var callListarProveedores = () => {
-
-  $(`#proveedor_id`).select2({
-    theme: "bootstrap-5",
-    containerCssClass: "select2--small",
-    dropdownCssClass: "select2--small",
-    ajax: {
-      url: route('guiasalida.listarProveedores'),
-      // type: 'POST',
-      data: function (params) {
-        var tipo = $('#tipo_busqueda_proveedor').val();
-        var query = {
-          term: params.term,
-          tipo: tipo,
-          _token: _token,
-        }
-        return query;
-      },
-      dataType: 'json',
-      delay: 250,
-      processResults: function (data) {
-        // console.log(data.items);
-        return {
-          results : data.items
-          // results: $.map(data.items, function (obj) {
-
-          //   return { id: obj.id, text: obj.name,  };
-          // })
-        };
-      },
-      // Additional AJAX parameters go here; see the end of this chapter for the full code of this example
-    }
-  });
-
-}
-
-$(document).on('change', '#cliente_id', function(event) {
-  var data = $(this).select2('data')[0];
-
-  var direccion = data.direccion;
-  $('#direccion').val(direccion);
-  // console.log({option});
-
-  $('#cliente_razon_social').val(data.razon_social);
-  $('#cliente_nro_documento').val(data.nro_documento);
-  $('#cliente_documento_tipo_nombre').val(data.documento_tipo_nombre);
-  $('#cliente_direccion').val(direccion);
-});
-
-$(document).on('change', '#transportista_id', function(event) {
-  var data = $(this).select2('data')[0];
-
-  var transportista_direccion = data.transportista_direccion;
-  $('#transportista_direccion').val(transportista_direccion);
-  $('#transportista_ruc').val(data.ruc);
-  $('#transportista_nombre').val(data.nombre);
-  // console.log({option});
-  callGetModalidadTraslado();
-});
 
 $(document).on('change', '#chofer_id', function(event) {
   event.preventDefault();
@@ -345,7 +226,6 @@ var callStore = (guardar_avance = false) => {
   var monto_igv = $('#monto_igv').val();
   var total_venta = $('#total_venta').val();
   var comentario = $('#comentario').val();
-  var data_proveedor = $('#proveedor_id').select2('data')[0];
 
 
   // if (data_proveedor != null) {
@@ -360,7 +240,6 @@ var callStore = (guardar_avance = false) => {
   // componente del selector. Antes se leia del data-* de la <option>, que solo
   // existia porque el controller devolvia las opciones ya en HTML.
 
-  var data_cliente = $('#cliente_id').select2('data')[0];
   // if (data_cliente != null) {
 
   //   formData.append('cliente_razon_social', data_cliente.razon_social);
@@ -381,7 +260,6 @@ var callStore = (guardar_avance = false) => {
   var almacen_nombre = $('#codalmacen').find(':selected').data('nombre');
   formData.append('almacen_nombre', almacen_nombre);
 
-  var data_transportista = $('#transportista_id').select2('data')[0];
   // if (data_transportista != null) {
   //   formData.append('transportista_ruc', data_transportista.ruc);
   //   formData.append('transportista_nombre', data_transportista.nombre);
@@ -631,23 +509,6 @@ var callStore = (guardar_avance = false) => {
 
 }
 
-$(document).on('change', '#proveedor_id', function(event) {
-  event.preventDefault();
-  /* Act on the event */
-  var data_proveedor = $('#proveedor_id').select2('data')[0];
-
-
-  $('#proveedor_nombre').val(data_proveedor.proveedor_nombre);
-  $('#proveedor_ruc').val(data_proveedor.proveedor_ruc);
-  $('#proveedor_direccion').val(data_proveedor.proveedor_direccion);
-
-  limpiarDetalle();
-
-  setTimeout(() => {
-    validarDireccionProveedor();
-  }, 200);
-
-});
 
 var modalStore = function(formData){
   var options = {
@@ -772,13 +633,15 @@ var callSetMotivoTraslado = () => {
     $('#div_almacene_transferencia').show();
     $('#div_cliente').hide();
     $('#div_proveedor').hide();
-    $('#div_operaciones').removeClass("col-md-6").addClass("col-md-12");
+    // En una transferencia no se elige destinatario, pero la seccion no puede
+    // quedarse vacia: se muestra a quien va, que es la propia empresa.
+    $('#div_destinatario_transferencia').show();
     $('#indicar_proveedor').prop('checked', false);
     $('#indicar_proveedor').prop('disabled', true);
 
 
   } else {
-    $('#div_operaciones').removeClass("col-md-12").addClass("col-md-6");
+    $('#div_destinatario_transferencia').hide();
     $('#indicar_proveedor').prop('disabled', false);
 
     var indicar_proveedor = $('#indicar_proveedor').prop('checked');

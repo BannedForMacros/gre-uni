@@ -738,15 +738,28 @@ class GuiaSalidaController extends Controller
 
         $valor = trim($request->get('term'));
         $tipo = $request->get('tipo_busqueda_cliente');//busqueda por razon social
-        // dd($request->all());
-        if (strlen($valor) > 2) {
-            $listClientes = Http::post("{$api_datos}/obtenerCliente",
-                ['valor' => $valor, 'tipo' => $tipo]
-            )->object()->cliente;
 
+        // Vacio A PROPOSITO: antes solo se definia dentro del if, y con una o
+        // dos letras el foreach de abajo reventaba con "Undefined variable".
+        // El buscador respondia 500 mientras el usuario escribia las primeras
+        // letras de cualquier cliente. Mismo fallo que tenia el de proveedores.
+        $listClientes = [];
+
+        if (strlen($valor) > 2) {
+            try {
+                $respuesta = Http::post("{$api_datos}/obtenerCliente",
+                    ['valor' => $valor, 'tipo' => $tipo]
+                )->object();
+
+                if (is_object($respuesta) && isset($respuesta->cliente) && is_array($respuesta->cliente)) {
+                    $listClientes = $respuesta->cliente;
+                }
+            } catch (\Throwable $e) {
+                Log::error(__METHOD__ . ": " . $e->getMessage());
+                return response()->json(['items' => [], 'error' => 'No se pudo consultar los clientes.']);
+            }
         }
 
-        // dd($listClientes);
         $items = array();
         foreach ($listClientes as $item) {
             $tipo_documento = $item->tipoDocumentoIdentidad;
@@ -768,15 +781,25 @@ class GuiaSalidaController extends Controller
 
         $valor = trim($request->get('term'));
         $tipo = 1;//busqueda por nombre
-        // dd($request->all());
-        if (strlen($valor) >= 0) {
-            $listItems = Http::post("{$api_datos}/ObtenerTransportista",
-                ['valor' => $valor, 'tipo' => $tipo]
-            )->object()->transportistas;
 
+        // Vacio A PROPOSITO, igual que en clientes y proveedores: encadenar
+        // ->transportistas a ciegas sobre la respuesta de la API convertia
+        // cualquier fallo del DataMart en un 500 del buscador.
+        $listItems = [];
+
+        try {
+            $respuesta = Http::post("{$api_datos}/ObtenerTransportista",
+                ['valor' => $valor, 'tipo' => $tipo]
+            )->object();
+
+            if (is_object($respuesta) && isset($respuesta->transportistas) && is_array($respuesta->transportistas)) {
+                $listItems = $respuesta->transportistas;
+            }
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            return response()->json(['items' => [], 'error' => 'No se pudo consultar los transportistas.']);
         }
 
-        // dd($listItems);
         $items = array();
         foreach ($listItems as $item) {
             $items[] = (object) array('id' => $item->codTransportista, 'text' => "[{$item->rucTransportista}] {$item->nombreTransportista}", 'transportista_direccion' => $item->direccionTransportista, 'ruc' => $item->rucTransportista, 'nombre' => $item->nombreTransportista );
