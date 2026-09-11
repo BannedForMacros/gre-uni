@@ -359,3 +359,50 @@ function Revisar-ApiGRE([string]$url) {
   foreach ($p in $faltan) { Write-Warning "Falta en SQL Server el procedimiento $p" }
   return $faltan
 }
+
+function Leer-Datos([string]$ruta) {
+  # Datos del cliente en un archivo KEY=VALOR, para que el instalador no
+  # pregunte nada cuando el tecnico lo prepara antes de ir donde el cliente.
+  $d = @{}
+  if ($ruta -and (Test-Path $ruta)) {
+    foreach ($l in Get-Content $ruta) {
+      if ($l -match '^\s*#') { continue }
+      if ($l -match '^\s*([A-Za-z_]+)\s*=\s*(.*)$') { $d[$matches[1].ToLower()] = $matches[2].Trim() }
+    }
+  }
+  return $d
+}
+
+function Preguntar {
+  # Una pregunta con valor por defecto y validacion. Si ya hay valor -por
+  # parametro o por el archivo de datos- no pregunta nada.
+  param(
+    [string]$Texto, [string]$Valor = '', [string]$PorDefecto = '',
+    [switch]$Oculto, [scriptblock]$Validar = $null, [string]$Ayuda = '', [switch]$SinPreguntas
+  )
+  if ($Valor) { return $Valor }
+  if ($SinPreguntas) { throw "Falta un dato obligatorio: $Texto" }
+
+  while ($true) {
+    $sufijo = if ($PorDefecto) { " [$PorDefecto]" } else { '' }
+    if ($Oculto) {
+      $seguro = Read-Host "  $Texto$sufijo" -AsSecureString
+      $r = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+             [Runtime.InteropServices.Marshal]::SecureStringToBSTR($seguro))
+    } else {
+      $r = Read-Host "  $Texto$sufijo"
+    }
+    if (-not $r) { $r = $PorDefecto }
+    if (-not $Validar) { return $r }
+    if (& $Validar $r) { return $r }
+    Write-Host "  $Ayuda" -ForegroundColor Yellow
+  }
+}
+
+function Ip-De-Este-Equipo {
+  $ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } |
+        Select-Object -First 1
+  if ($ip) { return $ip.IPAddress }
+  return 'localhost'
+}

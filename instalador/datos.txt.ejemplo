@@ -1,0 +1,29 @@
+# Datos del cliente para la instalacion.
+#
+# Renombre este archivo como  datos.txt  y rellenelo: el instalador no
+# preguntara nada y hara todo solo. Si prefiere que le pregunte, no cree el
+# archivo y ejecute INSTALAR.cmd: le hara las preguntas una por una.
+#
+# Lo unico imprescindible son el RUC, la razon social y los cuatro datos del
+# SQL Server del ERP. Lo demas puede quedar vacio.
+
+RUC=20100030838
+RAZON_SOCIAL=EMPRESA DE EJEMPLO SAC
+DIRECCION=AV. EJEMPLO 123 - LIMA
+TELEFONOS=01-2345678
+
+# SQL Server del ERP. Acepta  servidor  o  servidor,puerto  o  servidor\instancia
+SQL_SERVIDOR=192.168.1.10,1433
+SQL_BASE=db_cliente
+SQL_USUARIO=sa
+SQL_CLAVE=
+
+# Facturacion electronica. Si se dejan vacios, el sistema se instala igual y
+# las guias no se pueden enviar hasta completarlos desde la pantalla.
+FACTURACION_URL=
+FACTURACION_CONSULTAS_URL=
+FACTURACION_ESTADO_URL=
+FACTURACION_CREDENCIAL=
+
+# Puerto del sitio web. 80 es el normal.
+PUERTO_WEB=80

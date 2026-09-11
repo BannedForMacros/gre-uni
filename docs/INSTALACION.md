@@ -13,7 +13,9 @@ durante la instalación.
 | `app/` | Aplicación web (Laravel 8), sin dependencias de desarrollo |
 | `api-gre.jar` | ApiGRE (Spring Boot, Java 8): puente con el SQL Server del ERP |
 | `runtime/` | PHP 7.4.33, Apache 2.4.66 (VS17), MySQL 5.7.44, Java 8 (Temurin), Visual C++ 14.44 |
-| `instalar.ps1`, `actualizar.ps1`, `comun.ps1` | Scripts de instalación y actualización |
+| `INSTALAR.cmd`, `ACTUALIZAR.cmd` | Lo que se abre con doble clic |
+| `datos.txt.ejemplo` | Plantilla para dejar los datos del cliente preparados |
+| `instalar.ps1`, `actualizar.ps1`, `comun.ps1` | El trabajo real, que llaman los anteriores |
 | `sql/` | Procedimientos del DataMart que usa el sistema (SP01, SP02) |
 | `VERSION.txt` | Commit exacto de la aplicación y de ApiGRE |
 
@@ -47,41 +49,38 @@ Si hay cambios sin commit, avisa y los deja fuera. El resultado queda en
 ## 4. Instalación nueva
 
 1. Copie el zip al servidor y descomprímalo, por ejemplo en `C:\Instaladores`.
-2. Abra **PowerShell como Administrador** en esa carpeta.
-3. Ejecute:
+2. Doble clic en **INSTALAR.cmd**.
+3. Acepte el aviso de Windows que pide permisos de administrador.
+4. Responda las preguntas. Entre corchetes va el valor por omisión, y basta con
+   pulsar Enter para aceptarlo.
+
+Son seis datos: RUC, razón social, dirección, teléfono y los cuatro del SQL
+Server del ERP, que son servidor, base, usuario y clave. Nada más.
+
+El instalador comprueba que el SQL Server responda **antes** de tocar el
+servidor, valida lo que se escribe y muestra un resumen para confirmar. Si algo
+está mal, no se instala nada.
+
+Tarda menos de un minuto. Al terminar muestra la dirección web del servidor, el
+usuario `admin` y su clave inicial, y las escribe también en
+`C:\DBPeru\GRE\LEEME-INSTALACION.txt`.
+
+**Sin preguntas.** Si el técnico prefiere dejarlo preparado, copie
+`datos.txt.ejemplo` como `datos.txt` en la misma carpeta y rellénelo. El
+instalador lo lee y no pregunta nada.
+
+**Desde la consola**, para instalaciones en serie:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\instalar.ps1 `
-  -Ruc 20100030838 -RazonSocial "EMPRESA SAC" -Direccion "AV. ..." `
-  -SqlServidor "192.168.1.10,1433" -SqlBase db_cliente -SqlUsuario usuario -SqlClave "..." `
-  -FacturacionUrl "..." -FacturacionConsultasUrl "..." -FacturacionCredencial "..."
+powershell -ExecutionPolicy Bypass -File .\instalar.ps1 -SinPreguntas
 ```
 
-`-SqlServidor` acepta `host`, `host,puerto` o `host\instancia`.
+Con `-SinPreguntas` no hace ninguna pregunta y se detiene si falta un dato.
+También acepta cada dato como parámetro, por ejemplo `-Ruc` o `-SqlServidor`.
+`-SqlServidor` admite `servidor`, `servidor,puerto` o `servidor\instancia`.
 
-**Qué hace, en orden:**
-
-1. Comprueba que el paquete esté completo y que los puertos estén libres.
-2. Instala Visual C++ 14.44 si falta.
-3. Descomprime PHP, Apache, MySQL y Java en `C:\DBPeru\GRE`.
-4. Configura PHP con zona horaria America/Lima y las extensiones que usa el
-   sistema. `intl` es obligatoria porque la facturación la usa para quitar tildes.
-5. Inicializa MySQL como servicio **GRE-MySQL**, escuchando solo en 127.0.0.1.
-   Genera claves aleatorias y las guarda en `C:\DBPeru\GRE\config\secretos.json`,
-   con acceso solo para administradores.
-6. Copia la aplicación y crea el `.env` si no existe. Corre las migraciones y
-   `gre:inicializar`, que crea el usuario administrador.
-7. Configura Apache como servicio **GRE-Apache** y abre el puerto web en el firewall.
-8. Registra ApiGRE como tarea programada **GRE-ApiGRE**. Arranca con Windows, no
-   tiene límite de tiempo y se reinicia sola si Java se cae.
-9. Verifica que ApiGRE y la web respondan.
-
-Al terminar muestra `INSTALACION_OK` y escribe
-`C:\DBPeru\GRE\LEEME-INSTALACION.txt` con la dirección, el usuario `admin` y su
-**clave inicial**. Cámbiela en el primer ingreso.
-
-**Es repetible.** Volver a correrlo repara lo que falte, conserva el `.env`, las
-claves y los datos, y no crea otro administrador.
+**Es repetible.** Volver a ejecutarlo repara lo que falte, conserva el `.env`,
+las claves y los datos, y no crea otro administrador.
 
 ## 5. Verificar la instalación
 
@@ -108,11 +107,8 @@ sin `--entorno-de-pruebas`. Nunca llama a la facturación.
 
 ## 6. Actualizar una instalación
 
-Descomprima el paquete **nuevo** y, como Administrador:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\actualizar.ps1
-```
+Descomprima el paquete **nuevo** y haga doble clic en **ACTUALIZAR.cmd**. Pide
+permisos de administrador y hace el resto solo.
 
 1. Respalda la base con mysqldump y copia la aplicación en
    `C:\DBPeru\GRE\respaldos\<fecha>`.

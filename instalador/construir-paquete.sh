@@ -67,7 +67,12 @@ cp "$API_GRE/target/api-gre.jar" "$DIST/api-gre.jar"
 echo "  ok api-gre.jar (HEAD $(git -C "$API_GRE" rev-parse --short HEAD))"
 
 paso "Scripts, SQL y documentacion"
-cp "$RAIZ/instalador/instalar.ps1" "$RAIZ/instalador/actualizar.ps1" "$RAIZ/instalador/comun.ps1" "$DIST/"
+# Los .cmd son la puerta de entrada: el cliente instala con doble clic y el
+# script pide permisos de administrador solo. datos.txt.ejemplo sirve para
+# dejar todo preparado y que no pregunte nada.
+cp "$RAIZ/instalador/instalar.ps1" "$RAIZ/instalador/actualizar.ps1" "$RAIZ/instalador/comun.ps1" \
+   "$RAIZ/instalador/INSTALAR.cmd" "$RAIZ/instalador/ACTUALIZAR.cmd" \
+   "$RAIZ/instalador/datos.txt.ejemplo" "$DIST/"
 cp -R "$RAIZ/instalador/sql" "$DIST/sql"
 [ -f "$RAIZ/docs/INSTALACION.md" ] && cp "$RAIZ/docs/INSTALACION.md" "$DIST/LEEME-INSTALACION.md"
 {

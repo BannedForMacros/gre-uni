@@ -20,20 +20,25 @@
 [CmdletBinding()]
 param(
   [string]$Destino = 'C:\DBPeru\GRE',
-  [Parameter(Mandatory = $true)][string]$Ruc,
-  [Parameter(Mandatory = $true)][string]$RazonSocial,
+  [string]$Ruc = '',
+  [string]$RazonSocial = '',
   [string]$Direccion = '',
-  [string]$Telefonos = '-',
-  [Parameter(Mandatory = $true)][string]$SqlServidor,
-  [Parameter(Mandatory = $true)][string]$SqlBase,
-  [Parameter(Mandatory = $true)][string]$SqlUsuario,
-  [Parameter(Mandatory = $true)][string]$SqlClave,
+  [string]$Telefonos = '',
+  [string]$SqlServidor = '',
+  [string]$SqlBase = '',
+  [string]$SqlUsuario = '',
+  [string]$SqlClave = '',
   [string]$FacturacionUrl = '',
   [string]$FacturacionConsultasUrl = '',
   [string]$FacturacionEstadoUrl = '',
   [string]$FacturacionCredencial = '',
-  [int]$PuertoWeb = 80,
-  [string]$AdminUsuario = 'admin'
+  [int]$PuertoWeb = 0,
+  [string]$AdminUsuario = 'admin',
+  # Archivo KEY=VALOR con los datos del cliente. Por omision se busca datos.txt
+  # junto a este script.
+  [string]$Datos = '',
+  # Para tecnicos: no pregunta nada y falla si falta un dato.
+  [switch]$SinPreguntas
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +46,81 @@ $Paquete = $PSScriptRoot
 . (Join-Path $Paquete 'comun.ps1')
 
 Exigir-Administrador
+
+# ---------------------------------------------------------------- datos
+# Cada dato se toma, en este orden, del parametro, del archivo datos.txt y, si
+# sigue faltando, se pregunta. Asi el tecnico puede dejarlo todo preparado y el
+# instalador no pregunta nada, o puede ejecutarlo con doble clic y contestar.
+$archivoDatos = if ($Datos) { $Datos } else { Join-Path $Paquete 'datos.txt' }
+$datosCliente = Leer-Datos $archivoDatos
+
+function Dato([string]$clave, [string]$actual) {
+  if ($actual) { return $actual }
+  if ($datosCliente.ContainsKey($clave)) { return $datosCliente[$clave] }
+  return ''
+}
+
+Write-Host ''
+Write-Host '  ===============================================' -ForegroundColor Cyan
+Write-Host '   Instalacion de Guias Electronicas' -ForegroundColor Cyan
+Write-Host '  ===============================================' -ForegroundColor Cyan
+if (Test-Path $archivoDatos) { Write-Host "  Datos tomados de $archivoDatos" }
+else { Write-Host '  Responda las preguntas. Entre corchetes va el valor por omision.' }
+Write-Host ''
+
+$Ruc = Preguntar -Texto 'RUC de la empresa' -Valor (Dato 'ruc' $Ruc) -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) $v -match '^\d{11}$' } -Ayuda 'El RUC son 11 numeros, sin espacios.'
+$RazonSocial = Preguntar -Texto 'Razon social' -Valor (Dato 'razon_social' $RazonSocial) -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) $v.Trim().Length -ge 3 } -Ayuda 'Escriba el nombre de la empresa.'
+$Direccion = Preguntar -Texto 'Direccion' -Valor (Dato 'direccion' $Direccion) -PorDefecto '-' -SinPreguntas:$SinPreguntas
+$Telefonos = Preguntar -Texto 'Telefono' -Valor (Dato 'telefonos' $Telefonos) -PorDefecto '-' -SinPreguntas:$SinPreguntas
+
+Write-Host ''
+Write-Host '  SQL Server del ERP:' -ForegroundColor Cyan
+$SqlServidor = Preguntar -Texto 'Servidor (equipo, equipo,puerto o equipo\instancia)' -Valor (Dato 'sql_servidor' $SqlServidor) -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) $v.Trim().Length -ge 3 } -Ayuda 'Ejemplo: 192.168.1.10,1433'
+$SqlBase = Preguntar -Texto 'Base de datos' -Valor (Dato 'sql_base' $SqlBase) -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) $v.Trim().Length -ge 1 } -Ayuda 'Nombre de la base del ERP.'
+$SqlUsuario = Preguntar -Texto 'Usuario' -Valor (Dato 'sql_usuario' $SqlUsuario) -PorDefecto 'sa' -SinPreguntas:$SinPreguntas
+$SqlClave = Preguntar -Texto 'Clave' -Valor (Dato 'sql_clave' $SqlClave) -Oculto -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) $v.Length -ge 1 } -Ayuda 'La clave no puede quedar vacia.'
+
+# Se comprueba ANTES de instalar: si el servidor no responde, es mejor saberlo
+# ahora que despues de desplegar todo.
+while ($true) {
+  $sql = Parsear-SqlServidor $SqlServidor
+  if (Tcp-Responde $sql.Host $sql.Puerto 5000) {
+    Write-Host "  SQL Server responde en $($sql.Host):$($sql.Puerto)" -ForegroundColor Green
+    break
+  }
+  Write-Warning "No se llega a $($sql.Host):$($sql.Puerto). Revise el nombre, el puerto y el firewall."
+  if ($SinPreguntas) { throw "No se alcanza el SQL Server en $($sql.Host):$($sql.Puerto)" }
+  $otro = Read-Host '  Escriba otro servidor, o Enter para instalar igual'
+  if (-not $otro) { break }
+  $SqlServidor = $otro
+}
+
+$FacturacionUrl = Dato 'facturacion_url' $FacturacionUrl
+$FacturacionConsultasUrl = Dato 'facturacion_consultas_url' $FacturacionConsultasUrl
+$FacturacionEstadoUrl = Dato 'facturacion_estado_url' $FacturacionEstadoUrl
+$FacturacionCredencial = Dato 'facturacion_credencial' $FacturacionCredencial
+if (-not $PuertoWeb) {
+  $PuertoWeb = [int](Preguntar -Texto 'Puerto del sitio web' -Valor (Dato 'puerto_web' '') -PorDefecto '80' -SinPreguntas:$SinPreguntas `
+       -Validar { param($v) ($v -as [int]) -gt 0 } -Ayuda 'Un numero de puerto, normalmente 80.')
+}
+
+Write-Host ''
+Write-Host '  Resumen' -ForegroundColor Cyan
+Write-Host "    Empresa     : $RazonSocial"
+Write-Host "    RUC         : $Ruc"
+Write-Host "    SQL Server  : $SqlServidor / $SqlBase / usuario $SqlUsuario"
+Write-Host "    Se instala en: $Destino   y la web en el puerto $PuertoWeb"
+if (-not $FacturacionUrl) { Write-Host '    Facturacion : sin configurar; se completa despues desde la pantalla' }
+Write-Host ''
+if (-not $SinPreguntas) {
+  if ((Read-Host '  Continuar? (S/N)') -notmatch '^[SsYy]') { Write-Host '  Cancelado, no se toco nada.'; exit 1 }
+}
+Write-Host ''
 New-Item -ItemType Directory -Force "$Destino\logs", "$Destino\config", "$Destino\datos" | Out-Null
 $log = "$Destino\logs\instalacion-$(Get-Date -Format yyyyMMdd-HHmmss).log"
 Start-Transcript -Path $log | Out-Null
@@ -194,7 +274,7 @@ logging.file.name=$dir/logs/api-gre.log
 
   $resumen = @"
 Guias Electronicas instaladas en $Destino
-  Web:      http://<ip-de-este-servidor>:$PuertoWeb
+  Web:      http://$(Ip-De-Este-Equipo):$PuertoWeb
   Servicios: GRE-Apache, GRE-MySQL (Windows) y tarea programada GRE-ApiGRE
   Log de esta instalacion: $log
 "@
