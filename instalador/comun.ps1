@@ -223,13 +223,33 @@ function Configurar-Apache([string]$destino, [int]$puerto) {
   $d = $destino -replace '\\', '/'
   $conf = "$destino\apache\conf\httpd.conf"
   $t = [IO.File]::ReadAllText($conf)
+  # Apache Lounge cambia de estilo entre compilaciones: unas definen SRVROOT y
+  # otras escriben ServerRoot directo. La VS17 2.4.66 trae
+  # ServerRoot "C:/Apache24-64" y ningun Define, asi que reemplazar solo la
+  # variable dejaba el servidor apuntando a una carpeta inexistente y httpd
+  # moria con "ServerRoot must be a valid directory". Se cubren los dos estilos.
   $t = $t -replace '(?m)^Define SRVROOT [^\r\n]*', "Define SRVROOT `"$d/apache`""
+  if ($t -notmatch '(?m)^Define SRVROOT ') {
+    $t = $t -replace '(?m)^ServerRoot [^\r\n]*', "Define SRVROOT `"$d/apache`"`r`nServerRoot `"$d/apache`""
+  } else {
+    $t = $t -replace '(?m)^ServerRoot [^\r\n]*', "ServerRoot `"$d/apache`""
+  }
   $t = $t -replace '(?m)^Listen \d+', "Listen $puerto"
   $t = $t -replace '(?m)^#?ServerName [^\r\n]*', "ServerName localhost:$puerto"
-  $t = $t -replace '(?m)^#LoadModule rewrite_module', 'LoadModule rewrite_module'
+  # Los modulos vienen comentados como "# LoadModule ..." con un espacio detras
+  # del almohadilla en unas compilaciones y sin el en otras. El patron anterior
+  # exigia "#LoadModule" pegado, no casaba, y Laravel se quedaba sin mod_rewrite:
+  # con eso ninguna URL de la aplicacion funciona.
+  $t = $t -replace '(?m)^#\s*LoadModule rewrite_module', 'LoadModule rewrite_module'
   $t = $t -replace '(?m)^DocumentRoot ', '#DocumentRoot '
   if ($t -notmatch '(?m)^Include conf/extra/gre\.conf') { $t += "`r`nInclude conf/extra/gre.conf`r`n" }
   Escribir-Texto $conf $t
+  if ((Get-Content $conf | Select-String ('^ServerRoot "' + [regex]::Escape("$d/apache") + '"')).Count -eq 0) {
+    throw "No se pudo apuntar ServerRoot a $d/apache en httpd.conf"
+  }
+  if ((Get-Content $conf | Select-String '^LoadModule rewrite_module').Count -eq 0) {
+    throw "No se pudo activar mod_rewrite en httpd.conf"
+  }
 
   # Apache corre como servicio y NO ve el PATH de PHP: las DLL de las que
   # dependen las extensiones (OpenSSL, ICU para intl, libssh2 para curl) se
