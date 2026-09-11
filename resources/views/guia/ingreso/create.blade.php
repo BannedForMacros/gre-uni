@@ -142,7 +142,6 @@
       <section class="gre-seccion"
                x-data="greCombo({
                    ruta: '{{ route('guiaingreso.listarProveedores') }}',
-                   minimo: 1,
                    parametros: {
                        tipo: function () {
                            var s = document.getElementById('tipo_busqueda_proveedor');
@@ -175,7 +174,7 @@
               <div class="row g-2" x-show="!hayElegido">
                 <div class="col-4">
                   <select id="tipo_busqueda_proveedor" name="tipo_busqueda_proveedor" class="form-select"
-                          @change="texto.length >= minimo ? buscar() : null">
+                          @change="cambioDeModo()">
                     <option value="3">Razón social</option>
                     <option value="2">RUC</option>
                     <option value="1">Código</option>
@@ -184,9 +183,10 @@
 
                 <div class="col-8 gre-combo gre-combo-campo" @click.outside="cerrar()">
                   <input type="text" class="form-control" id="proveedor_busqueda" autocomplete="off"
-                         placeholder="Escriba y elija de la lista"
+                         placeholder="Haga clic para ver la lista o escriba para buscar"
                          x-model="texto"
                          @input="alEscribir()"
+                         @click="abrir()"
                          @keydown.enter.prevent="alPresionarEnter()"
                          @keydown.arrow-down.prevent="mover(1)"
                          @keydown.arrow-up.prevent="mover(-1)"
@@ -208,6 +208,7 @@
                         </span>
                       </button>
                     </template>
+                    <div class="gre-combo-pie" x-show="hayMas" x-text="pie"></div>
                   </div>
                 </div>
               </div>
@@ -381,7 +382,7 @@
                              Borrarlo rompia el reintento automatico como codigo de
                              barras: el fallback cambia el modo, y eso disparaba este
                              change, que limpiaba justo lo que acababa de encontrar. --}}
-                        x-model.number="busqueda.tipo" @change="busqueda.texto ? buscar() : volverAlBuscador()">
+                        x-model.number="busqueda.tipo" @change="(busqueda.texto || busqueda.abierto) ? buscar() : volverAlBuscador()">
                   <option value="1">Código de barras</option>
                   <option value="4">Descripción</option>
                   <option value="2">Código artículo</option>
@@ -394,6 +395,7 @@
                        :placeholder="busqueda.tipo == 1 ? 'Escanee o escriba el código de barras' : 'Escriba parte del nombre del artículo'"
                        x-model="busqueda.texto"
                        @input="alEscribir()"
+                       @click="abrirBusqueda()"
                        @keydown.enter.prevent="alPresionarEnter()"
                        @keydown.arrow-down.prevent="mover(1)"
                        @keydown.arrow-up.prevent="mover(-1)"
@@ -416,6 +418,7 @@
                       </span>
                     </button>
                   </template>
+                  <div class="gre-combo-pie" x-show="busqueda.hayMas" x-text="'Se muestran los primeros ' + busqueda.resultados.length + '. Escriba para afinar.'"></div>
                 </div>
               </div>
             </div>

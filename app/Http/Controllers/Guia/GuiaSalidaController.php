@@ -14,6 +14,7 @@ use App\Models\User;
 use Exception;
 use Faker\Provider\UserAgent;
 use Illuminate\Http\Request;
+use App\Support\BusquedaCatalogo;
 use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -596,6 +597,7 @@ class GuiaSalidaController extends Controller
     public function listarArticulos(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         // La ruta es GET; post('tipo') siempre devolvia null, asi que el tipo
         // de consulta nunca llegaba a la API. Mismo bug que en Guia de Ingreso.
@@ -606,24 +608,27 @@ class GuiaSalidaController extends Controller
         $codlistaprecio = $request->input('codlistaprecio', 1);
         // $indicar_proveedor = $request->get('indicar_proveedor');
         $indicar_proveedor = ($request->get('indicar_proveedor') == 'true') ? true : false;
-        $maximo = 0;
 
         // dd($indicar_proveedor);
 
         if ($tipoconsulta == 4) {
-            $maximo = 2;
         }
 
-        if (strlen($valor) > $maximo) {
+        try {
             $listArticulos = Http::post("{$api_datos}/ObtenerArticulo",
-                ['valor' => $valor, 'tipoconsulta' => $tipoconsulta, 'codestacion' => $codestacion, 'codalmacen' => $codalmacen, 'codlistaprecio' => $codlistaprecio]
-            )->object()->articulos ?? []; // ?? []: con la ApiGRE caida ->object() es null y esto era un 500
-
+                ['valor' => $valor, 'tipoconsulta' => $tipoconsulta, 'codestacion' => $codestacion, 'codalmacen' => $codalmacen, 'codlistaprecio' => $codlistaprecio, 'limite' => $limite + 1]
+            )->object()->articulos ?? [];
+        } catch (\Throwable $e) {
+            // Con la ApiGRE apagada Http::post lanza ConnectionException: era un 500.
+            Log::error(__METHOD__ . ': ' . $e->getMessage());
+            return response()->json(['items' => [], 'hayMas' => false, 'error' => 'No se pudo consultar el catalogo de articulos.'], 502);
         }
+
 
         // dd($listArticulos);
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listArticulos ?? []), $limite);
         $items = array();
-        foreach (($listArticulos ?? []) as $item) {
+        foreach ($lista as $item) {
             $afecto = 1;
             $stock = $item->stock ?? 0;
             $precioPublico = $item->precioPublico;
@@ -661,7 +666,7 @@ class GuiaSalidaController extends Controller
 
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
     public function buscarArticuloBarra(Request $request)
@@ -734,10 +739,10 @@ class GuiaSalidaController extends Controller
     public function listarProveedores(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         $valor = trim($request->get('term'));
         $tipo  = $request->get('tipo'); //busqueda por razon social
-        $maximo = ($tipo == 3) ? 2 : 0;
 
         // $listItems arranca vacio A PROPOSITO.
         //
@@ -748,35 +753,35 @@ class GuiaSalidaController extends Controller
         // escribia las primeras letras de CUALQUIER proveedor.
         $listItems = [];
 
-        if (strlen($valor) > $maximo) {
-            try {
-                $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
-                    ['valor' => $valor, 'tipo' => $tipo]
-                )->object();
+        try {
+            $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
+                ['valor' => $valor, 'tipo' => $tipo, 'limite' => $limite + 1]
+            )->object();
 
-                // La ApiGRE puede responder algo sin 'proveedores' (un error,
-                // un HTML). Encadenar ->proveedores a ciegas era otro 500.
-                if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
-                    $listItems = $respuesta->proveedores;
-                }
-            } catch (\Throwable $e) {
-                Log::error(__METHOD__ . ": " . $e->getMessage());
-                return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
+            // La ApiGRE puede responder algo sin 'proveedores' (un error,
+            // un HTML). Encadenar ->proveedores a ciegas era otro 500.
+            if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
+                $listItems = $respuesta->proveedores;
             }
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
         }
 
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listItems ?? []), $limite);
         $items = array();
-        foreach ($listItems as $item) {
+        foreach ($lista as $item) {
 
             $items[] = (object) array('id' => $item->codProveedor, 'text' => "[{$item->ruc}] {$item->nombreproveedor}", 'proveedor_nombre' => $item->nombreproveedor, 'proveedor_ruc' => $item->ruc);
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
     public function listarClientes(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         $valor = trim($request->get('term'));
         $tipo = $request->get('tipo_busqueda_cliente');//busqueda por razon social
@@ -787,23 +792,22 @@ class GuiaSalidaController extends Controller
         // letras de cualquier cliente. Mismo fallo que tenia el de proveedores.
         $listClientes = [];
 
-        if (strlen($valor) > 2) {
-            try {
-                $respuesta = Http::post("{$api_datos}/obtenerCliente",
-                    ['valor' => $valor, 'tipo' => $tipo]
-                )->object();
+        try {
+            $respuesta = Http::post("{$api_datos}/obtenerCliente",
+                ['valor' => $valor, 'tipo' => $tipo, 'limite' => $limite + 1]
+            )->object();
 
-                if (is_object($respuesta) && isset($respuesta->cliente) && is_array($respuesta->cliente)) {
-                    $listClientes = $respuesta->cliente;
-                }
-            } catch (\Throwable $e) {
-                Log::error(__METHOD__ . ": " . $e->getMessage());
-                return response()->json(['items' => [], 'error' => 'No se pudo consultar los clientes.']);
+            if (is_object($respuesta) && isset($respuesta->cliente) && is_array($respuesta->cliente)) {
+                $listClientes = $respuesta->cliente;
             }
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            return response()->json(['items' => [], 'error' => 'No se pudo consultar los clientes.']);
         }
 
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listClientes ?? []), $limite);
         $items = array();
-        foreach ($listClientes as $item) {
+        foreach ($lista as $item) {
             $tipo_documento = $item->tipoDocumentoIdentidad;
             $nro_documento = $item->dni;
             $documento_tipo_nombre = 'DNI';
@@ -814,12 +818,13 @@ class GuiaSalidaController extends Controller
             $items[] = (object) array('id' => $item->codCliente, 'text' => "[{$nro_documento}] {$item->razonSocial}", 'direccion' => $item->direccion, 'razon_social' => $item->razonSocial, 'nro_documento' => $nro_documento, 'documento_tipo_nombre' => $documento_tipo_nombre );
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
     public function listarTransportistas(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         $valor = trim($request->get('term'));
         $tipo = 1;//busqueda por nombre
@@ -831,7 +836,7 @@ class GuiaSalidaController extends Controller
 
         try {
             $respuesta = Http::post("{$api_datos}/ObtenerTransportista",
-                ['valor' => $valor, 'tipo' => $tipo]
+                ['valor' => $valor, 'tipo' => $tipo, 'limite' => $limite + 1]
             )->object();
 
             if (is_object($respuesta) && isset($respuesta->transportistas) && is_array($respuesta->transportistas)) {
@@ -842,12 +847,13 @@ class GuiaSalidaController extends Controller
             return response()->json(['items' => [], 'error' => 'No se pudo consultar los transportistas.']);
         }
 
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listItems ?? []), $limite);
         $items = array();
-        foreach ($listItems as $item) {
+        foreach ($lista as $item) {
             $items[] = (object) array('id' => $item->codTransportista, 'text' => "[{$item->rucTransportista}] {$item->nombreTransportista}", 'transportista_direccion' => $item->direccionTransportista, 'ruc' => $item->rucTransportista, 'nombre' => $item->nombreTransportista );
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
     public function listarUbigeos(Request $request)

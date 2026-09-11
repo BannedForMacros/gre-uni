@@ -163,17 +163,17 @@ class ArticulosYOtrasGuiasTest extends TestCase
     }
 
     /** @dataProvider rutasListar */
-    public function test_por_nombre_con_dos_letras_ni_consulta(string $ruta): void
+    public function test_por_nombre_con_dos_letras_ya_consulta(string $ruta): void
     {
-        // Por nombre (tipo 4) hacen falta 3 letras para no traer media base en
-        // cada tecla. Por codigo de barras (tipo 1) basta con lo que haya.
+        // Antes hacian falta 3 letras por nombre. Ahora consulta desde la
+        // primera y el servidor corta en 20. Con la ApiGRE caida, sin 500.
         $this->apiCaida();
 
         $this->actingAs($this->usuario())
              ->get(route($ruta, $this->consultaArticulos(['term' => 'or'])))
-             ->assertOk()->assertExactJson(['items' => []]);
+             ->assertOk()->assertJson(['items' => []]);
 
-        Http::assertNothingSent();
+        Http::assertSentCount(1);
     }
 
     public function test_en_salida_viajan_el_stock_y_si_es_afecto(): void

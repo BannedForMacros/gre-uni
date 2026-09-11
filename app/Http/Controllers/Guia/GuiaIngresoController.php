@@ -11,6 +11,7 @@ use App\Models\Parametro;
 use App\Models\Serie;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Support\BusquedaCatalogo;
 use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -297,10 +298,10 @@ public function agregarItem(AgregarItemRequest $request)
     public function listarProveedores(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         $valor = trim($request->get('term'));
         $tipo  = $request->get('tipo'); //busqueda por razon social
-        $maximo = ($tipo == 3) ? 2 : 0;
 
         // $listItems arranca vacio A PROPOSITO.
         //
@@ -311,30 +312,29 @@ public function agregarItem(AgregarItemRequest $request)
         // escribia las primeras letras de CUALQUIER proveedor.
         $listItems = [];
 
-        if (strlen($valor) > $maximo) {
-            try {
-                $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
-                    ['valor' => $valor, 'tipo' => $tipo]
-                )->object();
+        try {
+            $respuesta = Http::post("{$api_datos}/ObtenerProveedores",
+                ['valor' => $valor, 'tipo' => $tipo, 'limite' => $limite + 1]
+            )->object();
 
-                // La ApiGRE puede responder algo sin 'proveedores' (un error,
-                // un HTML). Encadenar ->proveedores a ciegas era otro 500.
-                if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
-                    $listItems = $respuesta->proveedores;
-                }
-            } catch (\Throwable $e) {
-                Log::error(__METHOD__ . ": " . $e->getMessage());
-                return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
+            // La ApiGRE puede responder algo sin 'proveedores' (un error,
+            // un HTML). Encadenar ->proveedores a ciegas era otro 500.
+            if (is_object($respuesta) && isset($respuesta->proveedores) && is_array($respuesta->proveedores)) {
+                $listItems = $respuesta->proveedores;
             }
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            return response()->json(['items' => [], 'error' => 'No se pudo consultar los proveedores.']);
         }
 
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listItems ?? []), $limite);
         $items = array();
-        foreach ($listItems as $item) {
+        foreach ($lista as $item) {
 
             $items[] = (object) array('id' => $item->codProveedor, 'text' => "[{$item->ruc}] {$item->nombreproveedor}", 'proveedor_nombre' => $item->nombreproveedor, 'proveedor_ruc' => $item->ruc);
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
     // Aqui estaba formBusquedaArticulo(), que devolvia el <input> o el <select>
@@ -345,6 +345,7 @@ public function agregarItem(AgregarItemRequest $request)
     public function listarArticulos(Request $request)
     {
         $api_datos = Parametro::find(6)->valor;
+        $limite = BusquedaCatalogo::limite($request);
 
         // La ruta es GET, pero esto leia $request->post('tipo'), que en un GET
         // siempre es null. El tipo de consulta nunca llegaba a la API y la
@@ -357,37 +358,36 @@ public function agregarItem(AgregarItemRequest $request)
 
         // Por codigo de barras basta con pocos caracteres; por nombre se exige
         // algo mas para no traer media base en cada tecla.
-        $maximo = ($tipoconsulta === 4) ? 2 : 0;
         // dd($request->all());
         $listArticulos = [];
 
-        if (strlen($valor) > $maximo) {
-            try {
-                $listArticulos = Http::post("{$api_datos}/ObtenerArticulo", [
-                    'valor'          => $valor,
-                    'tipoconsulta'   => $tipoconsulta,
-                    'codestacion'    => $codestacion,
-                    'codalmacen'     => $codalmacen,
-                    'codlistaprecio' => $codlistaprecio,
-                ])->object()->articulos ?? [];
-            } catch (Exception $e) {
-                // Antes una caida de la ApiGRE dejaba $listArticulos sin
-                // definir y el foreach de abajo reventaba con un 500.
-                return response()->json([
-                    'items' => [],
-                    'error' => 'No se pudo consultar el catalogo de articulos.',
-                ], 502);
-            }
+        try {
+            $listArticulos = Http::post("{$api_datos}/ObtenerArticulo", [
+                'valor'          => $valor,
+                'tipoconsulta'   => $tipoconsulta,
+                'codestacion'    => $codestacion,
+                'codalmacen'     => $codalmacen,
+                'codlistaprecio' => $codlistaprecio,
+                    'limite'         => $limite + 1,
+            ])->object()->articulos ?? [];
+        } catch (Exception $e) {
+            // Antes una caida de la ApiGRE dejaba $listArticulos sin
+            // definir y el foreach de abajo reventaba con un 500.
+            return response()->json([
+                'items' => [],
+                'error' => 'No se pudo consultar el catalogo de articulos.',
+            ], 502);
         }
 
         // dd($listArticulos);
+        [$lista, $hayMas] = BusquedaCatalogo::recortar((array) ($listArticulos ?? []), $limite);
         $items = array();
-        foreach ($listArticulos as $item) {
+        foreach ($lista as $item) {
             $stock = $item->stock ?? 0;
             $items[] = (object) array('id' => $item->codArticulo, 'text' => "[{$item->codBarra}] {$item->nombreArticulo}", 'codigo_barra' => $item->codBarra, 'descripcion' => $item->nombreArticulo, 'precio_publico' => $item->precioPublico, 'precio_sin_igv' => $item->precioSinIGV, 'peso' => $item->peso ?? 0, 'cod_unidad' => $item->codUnidad, 'desc_unidad_medida' => $item->descUnidadMedida ?? '', 'sigla_umfe' => $item->siglaUMFE ?? '', 'costo_articulo' => $item->costoArticulo, 'tipo_igv' => $item->tipoIgv ?? 0, );
         }
 
-        return response()->json(['items' => $items]);
+        return response()->json(['items' => $items, 'hayMas' => $hayMas]);
     }
 
 public function buscarArticuloBarra(Request $request)

@@ -130,17 +130,18 @@ class CatalogosTest extends TestCase
     }
 
     /** @dataProvider rutasProveedores */
-    public function test_proveedores_por_razon_social_con_dos_letras_ni_consulta(string $ruta): void
+    public function test_proveedores_por_razon_social_con_dos_letras_ya_consulta(string $ruta): void
     {
-        // Por razon social (tipo 3) hacen falta 3 letras: con menos no vale la
-        // pena molestar a la ApiGRE.
+        // Antes hacian falta 3 letras y al abrir el buscador no pasaba nada.
+        // Ahora consulta desde la primera; el servidor corta en 20 (ver
+        // BusquedaCatalogoTest). Con la ApiGRE caida sigue sin dar 500.
         $this->apiCaida();
 
         $this->actingAs($this->usuario())
              ->get(route($ruta, ['term' => 'di', 'tipo' => 3]))
-             ->assertOk()->assertExactJson(['items' => []]);
+             ->assertOk()->assertJson(['items' => []]);
 
-        Http::assertNothingSent();
+        Http::assertSentCount(1);
     }
 
     // -----------------------------------------------------------------
@@ -189,15 +190,16 @@ class CatalogosTest extends TestCase
         $this->actingAs($this->usuario())->get($url)->assertOk()->assertJson(['items' => []]);
     }
 
-    public function test_clientes_con_dos_letras_ni_consulta(): void
+    public function test_clientes_con_dos_letras_ya_consulta(): void
     {
+        // Sin minimo de letras: consulta, y con la ApiGRE caida no da 500.
         $this->apiCaida();
 
         $this->actingAs($this->usuario())
              ->get(route('guiasalida.listarClientes', ['term' => 'an', 'tipo_busqueda_cliente' => 1]))
-             ->assertOk()->assertExactJson(['items' => []]);
+             ->assertOk()->assertJson(['items' => []]);
 
-        Http::assertNothingSent();
+        Http::assertSentCount(1);
     }
 
     // -----------------------------------------------------------------

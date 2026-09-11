@@ -452,6 +452,19 @@
   text-align: center;
 }
 
+/* "Se muestran los primeros 20": el servidor corto la lista. Pegado al fondo
+   para que se lea aunque se desplacen los resultados. */
+.gre-combo-pie {
+  position: sticky;
+  bottom: 0;
+  padding: .45rem .75rem;
+  font-size: .75rem;
+  color: var(--gre-texto-tenue);
+  background: var(--gre-superficie);
+  border-top: 1px solid var(--gre-borde-tenue);
+  text-align: center;
+}
+
 /* --- Acceso -----------------------------------------------------------------
    Una sola tarjeta centrada. El anterior era el andamio de Laravel: etiquetas
    a la derecha en una grilla de 12 columnas, sin jerarquia y sin identidad. */

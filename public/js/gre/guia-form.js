@@ -31,10 +31,12 @@ window.greGuiaForm = function (config) {
             cargando: false,
             abierto: false,
             activo: -1,       // índice resaltado, para navegar con flechas
-            mensaje: ''
+            mensaje: '',
+            hayMas: false     // el servidor corto la lista: hay mas de los mostrados
         },
 
         _debounce: null,
+        _secBusqueda: 0,
 
         /** El almacén y la lista de precios salen de los selects de la cabecera. */
         contexto: function () {
@@ -57,15 +59,31 @@ window.greGuiaForm = function (config) {
             var self = this;
             clearTimeout(this._debounce);
 
+            // Sin minimo de letras: el servidor corta en 20 y avisa si hay mas
+            // (ver App\Support\BusquedaCatalogo). Borrar todo lo escrito con la
+            // lista abierta vuelve a la primera pagina; con la lista cerrada,
+            // no consulta nada.
             var texto = (this.busqueda.texto || '').trim();
-            if (texto.length < (this.busqueda.tipo === 1 ? 3 : 3)) {
+            if (!texto && !this.busqueda.abierto) {
                 this.busqueda.resultados = [];
-                this.busqueda.abierto = false;
+                this.busqueda.hayMas = false;
                 this.busqueda.mensaje = '';
                 return;
             }
 
             this._debounce = setTimeout(function () { self.buscar(); }, 220);
+        },
+
+        /**
+         * Clic en el buscador o flecha abajo con la lista cerrada.
+         *
+         * NO se abre al recibir el foco: volverAlBuscador() lo enfoca despues
+         * de cada articulo agregado, y abrir ahi taparia el detalle y lanzaria
+         * una consulta por cada escaneo.
+         */
+        abrirBusqueda: function () {
+            if (this.busqueda.abierto) { return; }
+            this.buscar();
         },
 
         /** Un codigo de barras: solo digitos y suficientemente largo. */
@@ -87,30 +105,43 @@ window.greGuiaForm = function (config) {
         buscar: function () {
             var self = this;
             var texto = (this.busqueda.texto || '').trim();
-            if (!texto) { return window.jQuery.Deferred().resolve().promise(); }
+
+            // Sin texto se explora el catalogo por descripcion: por codigo de
+            // barras o codigo de articulo el DataMart no lista nada si no hay
+            // un codigo. El selector no se toca.
+            var explorando = !texto;
+            var tipo = explorando ? 4 : this.busqueda.tipo;
+            var numero = ++this._secBusqueda;
 
             this.busqueda.cargando = true;
-            this.busqueda.mensaje = '';
+            this.busqueda.abierto = true;
+            if (!this.busqueda.resultados.length) { this.busqueda.mensaje = 'Buscando...'; }
 
             var listo = window.jQuery.Deferred();
 
-            function aplicar(items, tipoUsado) {
-                self.busqueda.resultados = items || [];
+            function aplicar(resp, tipoUsado) {
+                // Un escaner teclea trece digitos en un instante y las
+                // respuestas pueden volver desordenadas: solo cuenta la ultima.
+                if (numero !== self._secBusqueda) { listo.resolve(); return; }
+
+                var items = (resp && resp.items) || [];
+                self.busqueda.resultados = items;
+                self.busqueda.hayMas = !!(resp && resp.hayMas);
                 self.busqueda.abierto = true;
-                self.busqueda.activo = self.busqueda.resultados.length ? 0 : -1;
-                self.busqueda.mensaje = self.busqueda.resultados.length
+                self.busqueda.activo = items.length ? 0 : -1;
+                self.busqueda.mensaje = items.length
                     ? ''
-                    : 'Sin resultados para "' + texto + '".';
+                    : (explorando ? 'No hay articulos para este almacen.' : 'Sin resultados para "' + texto + '".');
                 // Si el codigo de barras aparecio estando en otro modo, dejar
                 // el selector donde de verdad esta buscando.
-                if (items && items.length && tipoUsado !== self.busqueda.tipo) {
+                if (!explorando && items.length && tipoUsado !== self.busqueda.tipo) {
                     self.busqueda.tipo = tipoUsado;
                 }
                 self.busqueda.cargando = false;
                 listo.resolve();
             }
 
-            this._consultar(texto, this.busqueda.tipo)
+            this._consultar(texto, tipo)
                 .done(function (resp) {
                     var items = (resp && resp.items) || [];
 
@@ -118,16 +149,18 @@ window.greGuiaForm = function (config) {
                     // hubo resultados y lo tecleado parece un codigo de barras,
                     // se reintenta como tal en vez de dejar al almacenero
                     // mirando una lista vacia.
-                    if (!items.length && self.pareceCodigoBarras(texto) && self.busqueda.tipo !== 1) {
+                    if (!explorando && !items.length && self.pareceCodigoBarras(texto) && self.busqueda.tipo !== 1) {
                         self._consultar(texto, 1)
-                            .done(function (r2) { aplicar((r2 && r2.items) || [], 1); })
-                            .fail(function () { aplicar([], self.busqueda.tipo); });
+                            .done(function (r2) { aplicar(r2, 1); })
+                            .fail(function () { aplicar(null, self.busqueda.tipo); });
                         return;
                     }
-                    aplicar(items, self.busqueda.tipo);
+                    aplicar(resp, tipo);
                 })
                 .fail(function (err) {
+                    if (numero !== self._secBusqueda) { listo.resolve(); return; }
                     self.busqueda.resultados = [];
+                    self.busqueda.hayMas = false;
                     self.busqueda.abierto = true;
                     self.busqueda.mensaje = err.message;
                     self.busqueda.cargando = false;
@@ -148,6 +181,10 @@ window.greGuiaForm = function (config) {
             var self = this;
             clearTimeout(this._debounce);
 
+            // Enter en el campo vacio y la lista cerrada no hace nada: un
+            // escaner nunca manda un Enter solo, y abrir aqui sorprenderia.
+            if (!(this.busqueda.texto || '').trim() && !this.busqueda.abierto) { return; }
+
             if (this.busqueda.resultados.length === 1) {
                 return this.elegir(this.busqueda.resultados[0]);
             }
@@ -163,7 +200,12 @@ window.greGuiaForm = function (config) {
         },
 
         mover: function (delta) {
-            if (!this.busqueda.abierto || !this.busqueda.resultados.length) { return; }
+            // Flecha abajo con la lista cerrada la abre, como un select.
+            if (!this.busqueda.abierto) {
+                if (delta > 0) { this.abrirBusqueda(); }
+                return;
+            }
+            if (!this.busqueda.resultados.length) { return; }
             var n = this.busqueda.resultados.length;
             this.busqueda.activo = (this.busqueda.activo + delta + n) % n;
         },
@@ -198,6 +240,7 @@ window.greGuiaForm = function (config) {
             }).done(function (resp) {
                 self.busqueda.texto = '';
                 self.busqueda.resultados = [];
+                self.busqueda.hayMas = false;
                 if (resp && typeof resp.validarStock === 'boolean') {
                     self.validarStock = resp.validarStock;
                 }

@@ -329,10 +329,10 @@ class GuiaIngresoControllerTest extends TestCase
         $respuesta = $this->get(route('guiaingreso.listarProveedores', ['term' => 'a', 'tipo' => 3]));
 
         $respuesta->assertOk();
-        $respuesta->assertExactJson(['items' => []]);
+        $respuesta->assertExactJson(['items' => [], 'hayMas' => false]);
 
-        // Y ni siquiera se molesta a la ApiGRE con una busqueda tan corta.
-        Http::assertNothingSent();
+        // Ya no hay minimo de letras: una sola letra consulta a la ApiGRE.
+        Http::assertSentCount(1);
     }
 
     /** @test */

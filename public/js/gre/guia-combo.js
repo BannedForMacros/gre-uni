@@ -1,25 +1,29 @@
 /**
- * Buscador con resultados, reutilizable.
+ * Buscador con resultados, reutilizable: select y busqueda a la vez.
  *
  * POR QUE EXISTE
  *
  * En la misma pantalla convivian dos buscadores con aspecto y comportamiento
  * distintos: el de articulos, escrito con Alpine, y el de proveedor, que era un
- * select2 de jQuery. Distinto foco, distinta lista, distinto teclado. Para
- * alguien que carga guias todo el dia eso es tener que aprender dos veces la
- * misma tarea, y ademas select2 se traia su propio CSS que no coincide con el
- * resto de la pantalla.
+ * select2 de jQuery. Este componente cubre el caso general -escribir o abrir la
+ * lista, elegir, dejarlo marcado-. El de articulos NO se reemplaza por este:
+ * tiene reglas propias (reintento como codigo de barras, agregar al detalle en
+ * vez de seleccionar, stock), pero se comporta igual al abrir y al escribir.
  *
- * Este componente cubre el caso general -escribir, elegir de una lista, dejarlo
- * marcado-. El de articulos NO se reemplaza por este: tiene reglas propias que
- * aqui no pintan nada (reintento como codigo de barras, agregar al detalle en
- * vez de seleccionar, control de stock).
+ * SIN MINIMO DE LETRAS
+ *
+ * Antes habia que escribir dos o tres letras para ver algo: al entrar al campo
+ * no pasaba nada y no se sabia si el buscador funcionaba. Ahora la lista se
+ * abre sin texto con los primeros resultados y consulta desde la primera
+ * letra. No satura: el servidor corta en 20 y avisa si hay mas
+ * (App\Support\BusquedaCatalogo tiene las mediciones).
  *
  * Teclado, que es como se trabaja aqui:
- *   escribir  -> busca solo, tras una pausa
- *   flechas   -> mueve por los resultados
- *   Enter     -> elige el resaltado
- *   Escape    -> cierra sin elegir
+ *   clic o flecha abajo -> abre la lista con los primeros resultados
+ *   escribir            -> filtra solo, tras una pausa
+ *   flechas             -> mueve por los resultados
+ *   Enter               -> elige el resaltado
+ *   Escape              -> cierra sin elegir
  *
  * Sin build: Alpine 3 y ES5, como el resto de public/js/gre/.
  */
@@ -31,12 +35,14 @@ window.greCombo = function (config) {
     return {
         // --- Configuracion ---------------------------------------------
         ruta:        config.ruta || '',
-        minimo:      config.minimo || 3,
+        // 0 = consulta desde la primera letra, y sin texto al abrir la lista.
+        minimo:      typeof config.minimo === 'number' ? config.minimo : 0,
         parametros:  config.parametros || {},
-        // Como se saca de cada resultado lo que se muestra y lo que se guarda.
-        // Se pasan desde la vista para que este archivo no sepa de proveedores.
         campoId:     config.campoId || 'id',
         campoTexto:  config.campoTexto || 'text',
+        // Hay catalogos que sin texto no listan nada (transportistas): en vez
+        // de un "sin resultados" que parece un fallo, se dice que escribir.
+        ayudaSinTexto: config.ayudaSinTexto || 'Escriba para buscar.',
 
         // --- Estado ----------------------------------------------------
         texto:       '',
@@ -45,22 +51,31 @@ window.greCombo = function (config) {
         abierto:     false,
         cargando:    false,
         mensaje:     '',
+        hayMas:      false,
         elegido:     config.elegido || null,
 
         _timer: null,
+        _secuencia: 0,
+        _cache: {},
 
         // --- Busqueda --------------------------------------------------
+
+        /** Clic en el campo o flecha abajo con la lista cerrada. */
+        abrir: function () {
+            if (this.abierto) { return; }
+            this.buscar();
+        },
 
         alEscribir: function () {
             var self = this;
 
-            // Se espera una pausa antes de consultar. Sin esto, escribir
-            // "DISTRIBUIDORA" lanza catorce peticiones y las respuestas
-            // llegan desordenadas: la lista parpadea con resultados viejos.
+            // Se espera una pausa antes de consultar: escribir "DISTRIBUIDORA"
+            // no lanza catorce peticiones.
             window.clearTimeout(this._timer);
 
             if (this.texto.trim().length < this.minimo) {
                 this.resultados = [];
+                this.hayMas = false;
                 this.abierto = false;
                 return;
             }
@@ -68,40 +83,68 @@ window.greCombo = function (config) {
             this._timer = window.setTimeout(function () { self.buscar(); }, 250);
         },
 
+        /** Cambio de modo (razon social, RUC, codigo): repite si hay algo a la vista. */
+        cambioDeModo: function () {
+            if (this.abierto || this.texto.trim()) { this.buscar(); }
+        },
+
         buscar: function () {
             var self = this;
             var termino = this.texto.trim();
+            var hecho = window.jQuery.Deferred();
 
-            if (!this.ruta || termino.length < this.minimo) { return; }
-
-            this.cargando = true;
-            this.abierto = true;
-            this.mensaje = 'Buscando...';
+            if (!this.ruta || termino.length < this.minimo) { return hecho.resolve().promise(); }
 
             var datos = window.jQuery.extend({ term: termino }, this._parametrosResueltos());
+            var clave = JSON.stringify(datos);
+            this.abierto = true;
+
+            // La primera pagina sin texto se pide una vez: abrir y cerrar la
+            // lista no vuelve a consultar el DataMart.
+            if (!termino && this._cache[clave]) {
+                this._aplicar(this._cache[clave], termino);
+                return hecho.resolve().promise();
+            }
+
+            var numero = ++this._secuencia;
+            this.cargando = true;
+            if (!this.resultados.length) { this.mensaje = 'Buscando...'; }
 
             window.Gre.get(this.ruta, datos, { silencioso: true })
                 .done(function (resp) {
-                    self.resultados = (resp && resp.items) || [];
-                    self.activo = 0;
-                    self.mensaje = self.resultados.length
-                        ? ''
-                        : 'Sin resultados para "' + termino + '".';
+                    // Escribir rapido lanza varias consultas y pueden volver
+                    // desordenadas: solo cuenta la ultima. Sin esto la lista
+                    // mostraba los resultados de "DI" despues de "DISTRI".
+                    if (numero !== self._secuencia) { return; }
+                    if (!termino) { self._cache[clave] = resp; }
+                    self._aplicar(resp, termino);
                 })
                 .fail(function (err) {
+                    if (numero !== self._secuencia) { return; }
                     self.resultados = [];
-                    self.mensaje = err.message || 'No se pudo consultar.';
+                    self.hayMas = false;
+                    self.mensaje = (err && err.message) || 'No se pudo consultar.';
                 })
                 .always(function () {
-                    self.cargando = false;
+                    if (numero === self._secuencia) { self.cargando = false; }
+                    hecho.resolve();
                 });
+
+            return hecho.promise();
+        },
+
+        _aplicar: function (resp, termino) {
+            this.resultados = (resp && resp.items) || [];
+            this.hayMas = !!(resp && resp.hayMas);
+            this.activo = 0;
+            this.mensaje = this.resultados.length
+                ? ''
+                : (termino ? 'Sin resultados para "' + termino + '".' : this.ayudaSinTexto);
         },
 
         /**
-         * Los parametros pueden venir como funcion para poder leer otro campo
-         * de la pantalla en el momento de buscar: el proveedor se busca por
-         * razon social, RUC o codigo segun lo que el usuario haya elegido, y
-         * ese valor cambia despues de montar el componente.
+         * Los parametros pueden venir como funcion para leer otro campo de la
+         * pantalla en el momento de buscar (el modo de busqueda, por ejemplo).
          */
         _parametrosResueltos: function () {
             var salida = {};
@@ -118,6 +161,11 @@ window.greCombo = function (config) {
         // --- Teclado ---------------------------------------------------
 
         mover: function (paso) {
+            // Flecha abajo con la lista cerrada la abre, como un select.
+            if (!this.abierto) {
+                if (paso > 0) { this.abrir(); }
+                return;
+            }
             if (!this.resultados.length) { return; }
 
             var siguiente = this.activo + paso;
@@ -138,6 +186,7 @@ window.greCombo = function (config) {
             this.elegido = item;
             this.texto = '';
             this.resultados = [];
+            this.hayMas = false;
             this.abierto = false;
             this.mensaje = '';
 
@@ -148,6 +197,7 @@ window.greCombo = function (config) {
             this.elegido = null;
             this.texto = '';
             this.resultados = [];
+            this.hayMas = false;
             this.abierto = false;
 
             if (typeof config.alElegir === 'function') { config.alElegir(null); }
@@ -158,6 +208,12 @@ window.greCombo = function (config) {
         },
 
         // --- Lectura para la vista -------------------------------------
+
+        get pie() {
+            return this.hayMas
+                ? 'Se muestran los primeros ' + this.resultados.length + '. Escriba para afinar.'
+                : '';
+        },
 
         get hayElegido() {
             return this.elegido !== null && this.elegido !== undefined;
