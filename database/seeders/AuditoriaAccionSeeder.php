@@ -15,7 +15,10 @@ class AuditoriaAccionSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('auditoria_acciones')->truncate();
+        // delete() y no truncate(): en MySQL TRUNCATE confirma en silencio la
+        // transaccion abierta (rompia gre:inicializar dentro de las pruebas) y
+        // ademas falla si alguna auditoria ya apunta a estas acciones.
+        DB::table('auditoria_acciones')->delete();
 
         $list = array(
             0 => array('id' => '1', 'nombre' => 'insertar'),

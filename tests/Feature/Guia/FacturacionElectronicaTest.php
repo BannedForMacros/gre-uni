@@ -60,7 +60,10 @@ class FacturacionElectronicaTest extends TestCase
                 'CodigoQr' => 'QR123', 'pdf417' => '', 'Pila' => '',
             ]),
             self::CONSULTAS => Http::sequence()
-                ->push(['success' => false, 'data' => null, 'message' => 'Documento no encontrado'])
+                // Respuesta REAL del facturador (e-dbfact:9191, 11 sep 2026) para un
+                // documento que no existe. Ojo: data trae texto, no null. Por
+                // eso "existe" exige success, y no basta con que haya data.
+                ->push(['success' => false, 'data' => 'El documento no existe'])
                 ->push(['success' => true, 'data' => 'JVBERi0=']),
             '*'            => Http::response('', 500),
         ]);
