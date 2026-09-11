@@ -2106,12 +2106,30 @@ public function storeDataMart(Request $request)
                 "numeroGuia" => $guia->numero
             ];
             // dd($body);
+            /*
+             * Se MIRA la respuesta. Antes se guardaba en $anularRemoto y no se
+             * leia nunca: si el DataMart contestaba que no habia podido
+             * anularla, o si la ApiGRE devolvia un 500 -que Http::post no
+             * convierte en excepcion-, la pantalla decia igualmente "Guia
+             * anulada" y la guia quedaba anulada aqui y viva alla. Anulada en
+             * un sitio y viva en el otro es el peor de los dos mundos.
+             */
             try {
                 $anularRemoto = Http::post("{$api_datos}/AnulaGuiaDMK", $body)->object();
-            } catch (Exception $e) {
+
+                if (! is_object($anularRemoto) || ! isset($anularRemoto->exito) || $anularRemoto->exito == false) {
+                    $motivo = (is_object($anularRemoto) && ! empty($anularRemoto->msgerror))
+                        ? $anularRemoto->msgerror
+                        : 'la ApiGRE no respondio como se esperaba';
+
+                    throw new Exception($motivo);
+                }
+            } catch (\Throwable $e) {
+                Log::error(__METHOD__ . ' (DataMart): ' . $e->getMessage());
+
                 $procede = false;
-                $msj = "No se pudo completar anulacion en DataMark";
-                $msj_tipo = "";
+                $msj = "No se pudo anular la guia en el DataMart: {$e->getMessage()}. No se anulo nada.";
+                $msj_tipo = "error";
                 $log = "{$e}";
             }
             // dd($anularRemoto);

@@ -13,3 +13,8 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+
+# Logo del cliente. NO va en el repo: se sube desde Configuracion de Empresa y
+# es de cada empresa. Con uno commiteado, cualquier instalacion que no suba el
+# suyo imprimiria sus guias con la marca de otro cliente.
+/public/img/logo.png

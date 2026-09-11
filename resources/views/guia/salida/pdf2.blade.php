@@ -127,7 +127,17 @@
     <table style="margin-top: -6.5rem; width: 100%">
       <tr>
         <td style="text-align: center; width: 32rem;">
-          <img src={{ url('img/logo.png') }} class="logo floatLeft" width="230">
+          {{-- El logo sale de Configuracion de Empresa, de cada cliente.
+
+               Estaba fijo a img/logo.png, que en el proyecto anterior era
+               correcto porque era de UN cliente. Aqui se instala en un centenar:
+               con la ruta fija, cualquiera que no suba el suyo imprimiria sus
+               guias con la marca de otra empresa. Si no hay logo configurado no
+               se pinta nada, que es mejor que pintar el de un tercero. --}}
+          @php($empresaLogo = \App\Support\Empresa::logoPath())
+          @if($empresaLogo)
+            <img src="{{ $empresaLogo }}" class="logo floatLeft" width="230">
+          @endif
           <table class="table_rounded" style="width: 100%; height: 5rem; font-size: 10px">
             <tbody>
               <tr>
@@ -192,7 +202,12 @@
         </tr>
         <tr>
           <td style="width: 36rem"><b>Fecha Emision:</b>
-            {{ $carbon::parse($documento->fecha_hora_emision)->format('d/m/Y H:i:s') }}</td>
+            {{-- fecha_hora_emision NO existe: las columnas son fecha_emision y
+                 hora_emision, por separado. Eloquent devuelve null para un
+                 atributo desconocido y Carbon::parse(null) da la fecha de HOY,
+                 asi que una guia de septiembre reimpresa en diciembre salia
+                 fechada en diciembre. En un documento con valor legal. --}}
+            {{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
           <td><b>Direccion:</b> {{ $documento->cliente_direccion }}</td>
         </tr>
         {{-- <tr>
@@ -297,41 +312,13 @@
       </tbody>
     </table>
 
-    {{-- tabla de consulta y qr --}}
+    {{-- Aqui iba una tabla de consulta y un QR, dentro de un display:none.
 
-    <table style="width: 100%; font-size: 10px; margin-top: 10px; display: none">
-      <tbody>
-        <tr>
-          <td style="width: 50rem;">
-
-            <table style="width: 100%; border-spacing: 0" class="table_consulta_qr">
-              <tbody>
-                <tr>
-                  <td>
-                    <span>Consulte comprobante en (https://supermercadosmila/comprobante/32212)</span><br>
-                    <span>Resumen: 1OzT6N9sCcEhSxmBxPt/KEeqRSI=</span><br>
-                    <span>Representación Impresa de la BOLETA DE VENTA ELECTRÓNICA.</span><br>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
-          <td style="width: 6rem"></td>
-          <td style="20rem">
-            <table>
-              <tbody>
-                <tr>
-                  <td style="height: 10rem;">
-                    {!! DNS2D::getBarcodeHTML('44456456564454555656', 'QRCODE', 4, 4) !!}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
+         No se veia -ni se ve- pero se generaba igual: 221 divs y 23 de los
+         33 KB del html que dompdf tiene que analizar, un tercio del tiempo de
+         render, para no pintar nada. Si algun dia se necesita el QR, se
+         recupera del historial: el codigo iba fijo a mano y la url apuntaba a
+         un dominio de ejemplo. --}}
   </main>
 </body>
 

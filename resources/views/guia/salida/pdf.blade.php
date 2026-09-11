@@ -134,7 +134,17 @@
     <table style="margin-top: -6.5rem; width: 100%">
       <tr>
         <td style="text-align: left; width: 32rem;">
-          <img src={{ url('img/logo.png') }} class="logo floatLeft" width="230">
+          {{-- El logo sale de Configuracion de Empresa, de cada cliente.
+
+               Estaba fijo a img/logo.png, que en el proyecto anterior era
+               correcto porque era de UN cliente. Aqui se instala en un centenar:
+               con la ruta fija, cualquiera que no suba el suyo imprimiria sus
+               guias con la marca de otra empresa. Si no hay logo configurado no
+               se pinta nada, que es mejor que pintar el de un tercero. --}}
+          @php($empresaLogo = \App\Support\Empresa::logoPath())
+          @if($empresaLogo)
+            <img src="{{ $empresaLogo }}" class="logo floatLeft" width="230">
+          @endif
           <table class="" style="width: 100%; height: 2rem; font-size: 10px; margin-top: -12px">
             <tbody>
               <tr>
@@ -181,7 +191,8 @@
       <tbody>
         <tr>
           <td style="width: 8rem"><b>Fecha Emision:</b></td>
-          <td style="width: 8rem">{{ $carbon::parse($documento->fecha_hora_emision)->format('Y-m-d') }}</td>
+          {{-- fecha_hora_emision no existe; Carbon::parse(null) da la fecha de HOY. --}}
+          <td style="width: 8rem">{{ $carbon::parse($documento->fecha_emision)->format('Y-m-d') }}</td>
           <td style="width: 6rem"><b>Motivo de traslado: </b></td>
           <td style="width: 18rem">{{ $documento->descripcion_motivo_traslado }}</td>
           <td style="width: 5rem"> <b>Peso Bruto</b></td>

@@ -1158,12 +1158,16 @@ public function storeDataMart(Request $request)
         $id   = $request->input('id');
         $guia = GuiaIngreso::find($id);
 
+        // Los fallos de negocio se responden con 200 y procede=false, que es la
+        // convencion del resto de la aplicacion y la que entiende Gre.request.
+        // Antes esta accion devolvia 404, 500 y 502: el mismo tipo de fallo
+        // contado de dos maneras distintas segun la pantalla.
         if (! $guia) {
             return response()->json([
                 'procede'  => false,
                 'msj'      => 'La guia ya no existe.',
                 'msj_tipo' => 'error',
-            ], 404);
+            ]);
         }
 
         $documento = $guia->serie . '-' . $guia->numero;
@@ -1182,7 +1186,7 @@ public function storeDataMart(Request $request)
                 'procede'  => false,
                 'msj'      => "No se pudo eliminar la guia {$documento}.",
                 'msj_tipo' => 'error',
-            ], 500);
+            ]);
         }
 
         $this->registrarAuditoria($guia->id, 4, 'guia_ingresos', json_encode($guia), "Guia {$documento} eliminada");
@@ -1198,9 +1202,26 @@ public function storeDataMart(Request $request)
 
         try {
             $api_datos = Parametro::find(6)->valor;
-            Http::post("{$api_datos}/EliminaGuiaDMK", $body)->object();
 
-        } catch (Exception $e) {
+            /*
+             * Se MIRA la respuesta. Antes se llamaba y se tiraba el resultado:
+             * si el DataMart contestaba que no habia podido borrarla, o si la
+             * ApiGRE devolvia un 500 -que Http::post no convierte en excepcion-,
+             * la pantalla decia igualmente "eliminada" y la guia quedaba
+             * marcada como borrada aqui y viva alla. Mismo fallo que tenia
+             * storeDataMart.
+             */
+            $respuesta = Http::post("{$api_datos}/EliminaGuiaDMK", $body)->object();
+
+            if (! is_object($respuesta) || ! isset($respuesta->exito) || $respuesta->exito == false) {
+                $motivo = (is_object($respuesta) && ! empty($respuesta->msgerror))
+                    ? $respuesta->msgerror
+                    : 'la ApiGRE no respondio como se esperaba';
+
+                throw new Exception($motivo);
+            }
+
+        } catch (\Throwable $e) {
             Log::error(__METHOD__ . ' (DataMart): ' . $e->getMessage());
 
             // Se revierte TODO, no solo el estado: dejarla con activo = 0 la
@@ -1213,7 +1234,7 @@ public function storeDataMart(Request $request)
                 'procede'  => false,
                 'msj'      => "No se pudo eliminar la guia {$documento} en el DataMart. No se elimino nada.",
                 'msj_tipo' => 'error',
-            ], 502);
+            ]);
         }
 
         $this->registrarAuditoria($guia->id, 4, 'guia_ingresos_datamart', json_encode($body), "Guia {$documento} eliminada en DataMart");
