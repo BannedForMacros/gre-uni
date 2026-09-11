@@ -203,7 +203,16 @@
                  asi que una guia de septiembre reimpresa en diciembre salia
                  fechada en diciembre. En un documento con valor legal. --}}
             {{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
-          <td><b>Direccion:</b> {{ $documento->cliente_direccion }}</td>
+          {{-- Apuntaba a $documento->cliente_direccion, que NO es una columna de
+               guia_ingresos: Eloquent devolvia null y este hueco salia vacio en
+               todas las guias de todos los clientes, desde siempre.
+
+               La direccion del proveedor no se guarda en una guia de ingreso
+               -el formulario no la pide-, asi que aqui no hay nada que pintar.
+               Se deja el rotulo, que es parte del formato, y se documenta:
+               para llenarlo hay que capturarla al registrar la guia, como ya
+               se hace en guia de salida con proveedor_direccion. --}}
+          <td><b>Direccion:</b> </td>
         </tr>
         <tr>
           <td style="width: 36rem"><b>Tipo Moneda:</b> {{ $guia->texto_moneda }}</td>

@@ -78,6 +78,50 @@ class PdfFechasTest extends TestCase
         }
     }
 
+
+    public function test_el_pdf_no_pinta_ningun_campo_que_no_exista(): void
+    {
+        // La misma trampa que la fecha, pero con cualquier campo: Eloquent
+        // devuelve null para un atributo desconocido y el PDF imprime un hueco
+        // en silencio. Asi llevaba anos vacio el "Direccion:" de la guia de
+        // ingreso, que apuntaba a cliente_direccion, una columna que no existe.
+        foreach (self::PLANTILLAS as $plantilla => $modelo) {
+            $fuente = $this->sinComentarios(file_get_contents(resource_path('views/' . $plantilla)));
+
+            // A las columnas se suman los campos que el controlador le cuelga al
+            // documento antes de pintarlo -texto_modalidad_traslado, peso_total-.
+            // Se deducen del propio controlador en vez de mantener una lista a
+            // mano, que se queda vieja en cuanto alguien anade uno.
+            $columnas = array_merge(
+                Schema::getColumnListing((new $modelo)->getTable()),
+                $this->camposQueAnadeElControlador($plantilla)
+            );
+
+            preg_match_all('/\$documento->([a-z_]+)/', $fuente, $campos);
+
+            foreach (array_unique($campos[1]) as $campo) {
+                $this->assertContains($campo, $columnas,
+                    "{$plantilla} pinta \$documento->{$campo}, que no es una columna de la tabla "
+                    . "ni lo pone el controlador. Eloquent devuelve null y el PDF sale con un hueco.");
+            }
+        }
+    }
+
+
+    /** Campos que el controlador asigna al documento antes de pintar el PDF. */
+    private function camposQueAnadeElControlador(string $plantilla): array
+    {
+        $controlador = strpos($plantilla, 'ingreso') !== false
+            ? 'GuiaIngresoController.php'
+            : 'GuiaSalidaController.php';
+
+        $fuente = file_get_contents(app_path('Http/Controllers/Guia/' . $controlador));
+
+        preg_match_all('/(?:\$guia|\$data\[.documento.\])->([a-z_]+)\s*=[^=]/', $fuente, $coincidencias);
+
+        return array_unique($coincidencias[1]);
+    }
+
     /** Los comentarios de Blade nombran los campos para explicar por que se fueron. */
     private function sinComentarios(string $fuente): string
     {
