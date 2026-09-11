@@ -230,7 +230,12 @@
       <tbody>
         @foreach ($detalle as $item)
           <tr style="text-align: left;" class="table_det_bottom">
-            <td>{{ $nro++ }}</td>
+            {{-- $loop->iteration en vez de una variable que tenga que pasar el
+                 controlador: asi la plantilla no depende de que alguien se
+                 acuerde de inicializarla. La de salida usa un $nro que su
+                 controlador define y el de ingreso no, y copiarlo tal cual
+                 rompio esta pantalla. --}}
+            <td>{{ $loop->iteration }}</td>
             <td>{{ $item->codarticulo }}</td>
             <td>{{ $item->descripcion }}@if ($item->codigo_barra) | {{ $item->codigo_barra }}@endif</td>
             <td style="text-align: right">{{ Str::upper($item->desc_unidad_medida) ?? 'UNI' }}</td>
