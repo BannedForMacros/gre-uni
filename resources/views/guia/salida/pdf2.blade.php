@@ -195,7 +195,10 @@
         </tr>
         <tr>
           <td style="width: 36rem"><b>Fecha Emision:</b>
-            {{ $carbon::parse($documento->fecha_hora_emision)->format('d/m/Y H:i:s') }}</td>
+            {{-- Fecha y hora van en columnas separadas: fecha_emision y
+                 hora_emision. Antes se leia fecha_hora_emision, que no existe,
+                 y Carbon::parse(null) imprimia la fecha de HOY. --}}
+            {{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
           <td><b>Direccion:</b> {{ $documento->cliente_direccion }}</td>
         </tr>
         {{-- <tr>
