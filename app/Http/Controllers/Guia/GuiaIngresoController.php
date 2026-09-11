@@ -520,6 +520,28 @@ public function buscarArticuloBarra(Request $request)
             ]);
         }
 
+        // La serie es obligatoria al generar. En una guia externa (la del
+        // proveedor) la escribe el usuario; en una interna se elige. Antes se
+        // leia sin comprobar y, si no llegaba, la pantalla moria con
+        // "Undefined array key" en vez de decir que falta.
+        if ($guardar_avance == false) {
+            $serieFaltante = ((string) $es_guia_interna === '0')
+                ? trim((string) ($datos['serie_externa'] ?? '')) === ''
+                : trim((string) ($datos['serie'] ?? '')) === '';
+
+            if ($serieFaltante) {
+                return response()->json([
+                    'procede'  => false,
+                    'msj'      => ((string) $es_guia_interna === '0')
+                        ? 'Indique la serie de la guia externa.'
+                        : 'Elija la serie de la guia.',
+                    'msj_tipo' => 'error',
+                    'log'      => '',
+                    'id'       => '',
+                ]);
+            }
+        }
+
 
         // asignamos existencia de serie en BD
         if ($guardar_avance == false) {
@@ -593,8 +615,11 @@ public function buscarArticuloBarra(Request $request)
             } catch (Exception $e) {
                 // dd($e);
                 $procede = false;
-                $msj = "No se pudo registrar en Nube";
-                $msj_tipo = "success";
+                // Lo que fallo es la escritura en la base LOCAL, no la nube: el
+                // mensaje anterior mandaba a buscar el problema en otro lado, y
+                // ademas iba marcado como "success".
+                $msj = "No se pudo guardar la guia en la base local.";
+                $msj_tipo = "error";
                 $log = "{$e}";
             }
 

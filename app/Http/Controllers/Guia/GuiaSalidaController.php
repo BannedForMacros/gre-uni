@@ -1186,8 +1186,11 @@ class GuiaSalidaController extends Controller
             } catch (Exception $e) {
                 // dd($e);
                 $procede = false;
-                $msj = "No se pudo registrar en Nube";
-                $msj_tipo = "success";
+                // Lo que fallo es la escritura en la base LOCAL, no la nube: el
+                // mensaje anterior mandaba a buscar el problema en otro lado, y
+                // ademas iba marcado como "success".
+                $msj = "No se pudo guardar la guia en la base local.";
+                $msj_tipo = "error";
                 $log = "{$e}";
             }
 
