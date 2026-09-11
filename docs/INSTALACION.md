@@ -160,20 +160,48 @@ pasos manuales:
 | "PHP no cargo la extension …" | Falta Visual C++ o el zip está dañado | Reinstalar Visual C++ 14.44 del paquete y volver a correr el instalador |
 | Búsqueda de proveedor por razón social siempre vacía | Falta `pr_consultaProveedorlikeRazonsocial` | Ver `procedimientosFaltantes` en la salud de ApiGRE |
 | ApiGRE no responde | Java caído o SQL Server inalcanzable | `C:\DBPeru\GRE\logs\api-gre.log` y `api-gre-consola.log` |
+| El login rechaza al administrador recién creado | Paquete anterior a 2026.09.3, donde el campo de usuario dependía de un archivo modificado a mano fuera del repositorio | Instalar un paquete 2026.09.3 o posterior |
+| `Expand-Archive` dice que terminó y no crea nada | Observado en Windows 11 ARM | Descomprimir con `tar -xf dbperu-guias-<versión>.zip`, que viene con Windows |
+| Copiar archivos sueltos con `scp` a una carpeta no los reemplaza | OpenSSH de Windows con PowerShell como intérprete | Copiar a la carpeta del usuario, mover con `Copy-Item` y comprobar la huella con `Get-FileHash` |
+| "La ejecución de scripts está deshabilitada en este sistema" | Directiva de ejecución restringida, que es la de fábrica | Invocar como indica este manual, con `powershell -ExecutionPolicy Bypass -File` |
 
 ## 10. Estado de la validación
 
-- **Validado (11 sep 2026), en macOS con la misma aplicación, ApiGRE y un SQL
-  Server de pruebas:**
-  - La prueba de punta a punta pasa 18 de 19 pasos: ingreso y salida completos,
-    con DataMart, PDF y listados. El paso que falla es la búsqueda por razón
-    social, porque falta ese procedimiento en la base de pruebas.
-  - Las guías creadas se confirmaron en `GuiaRemision`.
-  - Pasan 216 pruebas PHP, las pruebas JavaScript y las de ApiGRE.
-- **Los scripts de PowerShell** pasan el verificador de sintaxis de PowerShell y
-  son solo ASCII.
-- **Pendiente: correr la instalación completa en Windows.** La máquina virtual
-  Windows 11 ARM de pruebas está preparada, pero todavía no se ejecutó.
-  Hasta entonces este procedimiento no está probado en un Windows real.
-- **Windows 7 no está probado.** Apache y Visual C++ se eligieron porque declaran
-  soportarlo. Java 8 Temurin y MySQL 5.7 no se verificaron en Windows 7.
+Probado el 11 de septiembre de 2026 instalando el paquete en un Windows limpio:
+Windows 11 Pro ARM64, PowerShell 5.1, 4 GB de memoria, contra un SQL Server
+alcanzado por red.
+
+**Instalación nueva:** termina con `INSTALACION_OK`. Deja los servicios
+GRE-Apache y GRE-MySQL y la tarea GRE-ApiGRE. ApiGRE y la aplicación web
+responden, y el instalador avisa por su cuenta del procedimiento que falta en
+SQL Server.
+
+**Repetible:** correrlo otra vez conserva el `.env`, no vuelve a migrar, no
+resiembra catálogos y no crea un segundo administrador.
+
+**Actualización:** `ACTUALIZACION_OK` en 27 segundos, con respaldo previo de la
+base y de la aplicación.
+
+**Reversión:** probada de verdad, no simulada. Una actualización falló al
+detener ApiGRE, y el sistema se restauró solo y quedó como estaba.
+
+**Recorrido completo del sistema:** 22 de 23 pasos. Login, pantallas, catálogos
+del DataMart, búsqueda de artículos, alta de una guía de ingreso y una de
+salida, envío al DataMart, PDF normal y valorado, y listados. El paso que falla
+es la búsqueda de proveedor por razón social, por el procedimiento ausente.
+
+Las dos guías creadas desde Windows se comprobaron en SQL Server: ingreso
+1-1921 como tipo N y salida 1-1922 como tipo A.
+
+**Defectos que encontró esta prueba y que ya están corregidos:**
+
+| Defecto | Efecto en un cliente |
+|---|---|
+| `ServerRoot` solo se cambiaba si la compilación de Apache usaba una variable | Apache no arrancaba |
+| El patrón para activar `mod_rewrite` no contemplaba el comentado con espacio | Ninguna URL de la aplicación funcionaba |
+| El campo del formulario de login dependía de un archivo modificado a mano fuera del repositorio | Nadie podía entrar tras instalar |
+| Detener ApiGRE abortaba la actualización si el proceso ya había terminado | La actualización se revertía sin motivo |
+
+**Lo que sigue sin probarse: Windows 7.** Apache y Visual C++ se eligieron
+porque declaran soportarlo, pero no se instaló ahí. Java 8 y MySQL 5.7 tampoco
+se verificaron en esa versión.
