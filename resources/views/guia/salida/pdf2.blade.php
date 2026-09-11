@@ -127,10 +127,7 @@
     <table style="margin-top: -6.5rem; width: 100%">
       <tr>
         <td style="text-align: center; width: 32rem;">
-          @php($empresaLogo = \App\Support\Empresa::logoPath())
-          @if($empresaLogo)
-          <img src="{{ $empresaLogo }}" class="logo floatLeft" width="230">
-          @endif
+          <img src={{ url('img/logo.png') }} class="logo floatLeft" width="230">
           <table class="table_rounded" style="width: 100%; height: 5rem; font-size: 10px">
             <tbody>
               <tr>
@@ -195,10 +192,7 @@
         </tr>
         <tr>
           <td style="width: 36rem"><b>Fecha Emision:</b>
-            {{-- Fecha y hora van en columnas separadas: fecha_emision y
-                 hora_emision. Antes se leia fecha_hora_emision, que no existe,
-                 y Carbon::parse(null) imprimia la fecha de HOY. --}}
-            {{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
+            {{ $carbon::parse($documento->fecha_hora_emision)->format('d/m/Y H:i:s') }}</td>
           <td><b>Direccion:</b> {{ $documento->cliente_direccion }}</td>
         </tr>
         {{-- <tr>

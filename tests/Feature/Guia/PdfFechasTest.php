@@ -8,19 +8,30 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * El PDF imprimia la fecha de HOY en vez de la de la guia.
+ * DEFECTO CONOCIDO Y ACEPTADO: el PDF imprime la fecha de HOY.
  *
- * Las plantillas leian $documento->fecha_hora_emision, un atributo que NO
+ * Las plantillas leen $documento->fecha_hora_emision, un atributo que NO
  * existe: las columnas son fecha_emision y hora_emision, por separado. Eloquent
  * devuelve null para un atributo desconocido y Carbon::parse(null) da la fecha
- * actual, asi que una guia del 3 de septiembre reimpresa en diciembre salia
- * fechada en diciembre. En un documento con valor legal, y sin ningun error a
- * la vista.
+ * actual, asi que una guia del 10 de septiembre reimpresa en diciembre sale
+ * fechada en diciembre. Comprobado sobre la guia 1-1916: emitida el 2026-09-10,
+ * el PDF ponia 2026-09-11.
  *
- * No se comprueba el PDF ya pintado: eso obliga a fabricar las veinte
- * propiedades que la plantilla necesita y la prueba se rompe cada vez que se
- * toca el diseno. Se comprueba lo que causo el fallo: que toda fecha que el
- * PDF imprime salga de una columna que existe de verdad.
+ * Se corrigio y se volvio a dejar como estaba POR DECISION EXPRESA: el PDF
+ * tiene que salir exactamente igual que en la version anterior, de la que estos
+ * archivos son copia byte a byte.
+ *
+ * Esta prueba NO comprueba que el comportamiento sea correcto -no lo es-. Deja
+ * escrito cual es, para que:
+ *   - nadie lo descubra otra vez desde cero,
+ *   - y si alguien lo arregla, esta prueba falle y lea este comentario antes de
+ *     tocarlo, en vez de creer que rompio algo.
+ *
+ * Para arreglarlo, en las tres plantillas:
+ *   $documento->fecha_hora_emision
+ *   -> trim($documento->fecha_emision . ' ' . $documento->hora_emision)
+ * y en "Fecha Inicio" de guia de salida:
+ *   -> $documento->fecha_inicio_traslado ?? $documento->fecha_emision
  */
 class PdfFechasTest extends TestCase
 {
@@ -31,47 +42,31 @@ class PdfFechasTest extends TestCase
         'guia/salida/pdf2.blade.php' => GuiaSalida::class,
     ];
 
-    public function test_toda_fecha_del_pdf_sale_de_una_columna_que_existe(): void
+    public function test_fecha_hora_emision_no_es_una_columna_de_ninguna_de_las_dos_tablas(): void
     {
-        foreach (self::PLANTILLAS as $plantilla => $modelo) {
-            $fuente = file_get_contents(resource_path('views/' . $plantilla));
-            $columnas = Schema::getColumnListing((new $modelo)->getTable());
+        foreach (array_unique(array_values(self::PLANTILLAS)) as $modelo) {
+            $tabla = (new $modelo)->getTable();
 
-            // Los campos que la plantilla mete dentro de un Carbon::parse().
-            preg_match_all('/parse\(\s*(.+?)\s*\)->format/s', $fuente, $expresiones);
+            $this->assertNotContains('fecha_hora_emision', Schema::getColumnListing($tabla),
+                "Si {$tabla} ya tiene la columna fecha_hora_emision, el defecto descrito en "
+                . "esta clase dejo de existir y hay que revisar estas pruebas.");
 
-            $this->assertNotEmpty($expresiones[1], "No se encontro ninguna fecha en {$plantilla}");
-
-            foreach ($expresiones[1] as $expresion) {
-                preg_match_all('/\$documento->([a-z_]+)/', $expresion, $campos);
-
-                foreach ($campos[1] as $campo) {
-                    $this->assertContains(
-                        $campo,
-                        $columnas,
-                        "{$plantilla} imprime una fecha desde \$documento->{$campo}, "
-                        . "que no es una columna de la tabla. Eloquent devuelve null y "
-                        . "Carbon::parse(null) imprime la fecha de HOY."
-                    );
-                }
-            }
+            $this->assertContains('fecha_emision', Schema::getColumnListing($tabla));
+            $this->assertContains('hora_emision', Schema::getColumnListing($tabla));
         }
     }
 
-    public function test_ninguna_plantilla_vuelve_a_usar_el_campo_que_no_existia(): void
+    public function test_las_plantillas_siguen_igual_que_en_la_version_anterior(): void
     {
         foreach (array_keys(self::PLANTILLAS) as $plantilla) {
             $fuente = file_get_contents(resource_path('views/' . $plantilla));
 
-            // Solo se busca fuera de los comentarios de Blade, que si lo nombran
-            // para explicar por que desaparecio.
-            $sinComentarios = preg_replace('/\{\{--.*?--\}\}/s', '', $fuente);
-
-            $this->assertStringNotContainsString(
-                'fecha_hora_emision',
-                $sinComentarios,
-                "{$plantilla} volvio a usar fecha_hora_emision, que no existe."
-            );
+            // Se deja constancia de que el campo inexistente sigue ahi a
+            // proposito. Si alguien lo cambia, esta prueba falla y le manda a
+            // leer el porque antes de dar por bueno el cambio.
+            $this->assertStringContainsString('fecha_hora_emision', $fuente,
+                "{$plantilla} ya no usa fecha_hora_emision. Si es un arreglo deliberado, "
+                . "actualiza esta prueba; ver el comentario de la clase.");
         }
     }
 }

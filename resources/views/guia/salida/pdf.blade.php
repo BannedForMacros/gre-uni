@@ -134,10 +134,7 @@
     <table style="margin-top: -6.5rem; width: 100%">
       <tr>
         <td style="text-align: left; width: 32rem;">
-          @php($empresaLogo = \App\Support\Empresa::logoPath())
-          @if($empresaLogo)
-          <img src="{{ $empresaLogo }}" class="logo floatLeft" width="230">
-          @endif
+          <img src={{ url('img/logo.png') }} class="logo floatLeft" width="230">
           <table class="" style="width: 100%; height: 2rem; font-size: 10px; margin-top: -12px">
             <tbody>
               <tr>
@@ -184,12 +181,7 @@
       <tbody>
         <tr>
           <td style="width: 8rem"><b>Fecha Emision:</b></td>
-          {{-- fecha_hora_emision NO existe: las columnas son fecha_emision y
-               hora_emision, por separado. Eloquent devuelve null para un
-               atributo que no existe y Carbon::parse(null) da la fecha de HOY,
-               asi que el PDF de una guia del 3 de septiembre se imprimia con la
-               fecha del dia en que se abria. En un documento con valor legal. --}}
-          <td style="width: 8rem">{{ $carbon::parse($documento->fecha_emision)->format('Y-m-d') }}</td>
+          <td style="width: 8rem">{{ $carbon::parse($documento->fecha_hora_emision)->format('Y-m-d') }}</td>
           <td style="width: 6rem"><b>Motivo de traslado: </b></td>
           <td style="width: 18rem">{{ $documento->descripcion_motivo_traslado }}</td>
           <td style="width: 5rem"> <b>Peso Bruto</b></td>
@@ -197,8 +189,6 @@
         </tr>
         <tr>
           <td style="width: 8rem"><b>Fecha Inicio:</b></td>
-          {{-- La fecha de inicio de traslado es la que declara la guia. Si no
-               se indico, vale la de emision, como hacia el proyecto anterior. --}}
           <td>{{ $carbon::parse($documento->fecha_inicio_traslado ?? $documento->fecha_emision)->format('Y-m-d') }}</td>
           <td style="width: 6rem"><b>Modalidad transporte:</td>
           <td></b> {{ $documento->texto_modalidad_traslado }}</td>
