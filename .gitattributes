@@ -8,3 +8,8 @@
 
 /.github export-ignore
 CHANGELOG.md export-ignore
+
+# Los lanzadores los ejecuta Windows: deben viajar siempre con fin de linea
+# de Windows, sin depender de la configuracion de cada maquina.
+*.cmd text eol=crlf
+*.bat text eol=crlf
