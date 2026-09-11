@@ -39,6 +39,23 @@ siguientes.
 pero allí no hace falta: el despliegue en el cliente va sobre Apache, que ya
 atiende varias peticiones a la vez.
 
+`dev.sh` además **elige una versión de PHP que el proyecto soporte**.
+`composer.json` pide `^7.4|^8.0` y el servidor del cliente corre 7.4.33. Con un
+PHP más nuevo la aplicación arranca, pero Laravel 8 y sus dependencias sueltan
+avisos de obsolescencia en cada comando y en cada petición: **104 avisos con PHP
+8.5 frente a 0 con 8.1**. No son de este código, pero ensucian la salida y
+llegan a romper lo que lee JSON de un comando. Si quieres forzar uno concreto:
+
+```bash
+PHP_BIN=/ruta/a/php ./dev.sh
+```
+
+Para las pruebas y los comandos de artisan conviene usar la misma versión:
+
+```bash
+/opt/homebrew/opt/php@8.1/bin/php vendor/bin/phpunit
+```
+
 La ApiGRE tiene que estar levantada aparte (ver su propio README).
 
 ---

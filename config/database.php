@@ -59,9 +59,29 @@ return [
             'strict' => true,
             // 'engine' => null,
             'engine' => 'InnoDB',
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            /*
+             * Certificado para conectar a MySQL por SSL.
+             *
+             * La constante se nombra SOLO si de verdad hay certificado
+             * configurado. Antes se nombraba siempre, aunque no se usara, y en
+             * PHP 8.5 eso suelta un aviso de obsolescencia en cada comando de
+             * artisan y en cada peticion:
+             *
+             *   Deprecated: Constant PDO::MYSQL_ATTR_SSL_CA is deprecated
+             *   since 8.5, use Pdo\Mysql::ATTR_SSL_CA instead
+             *
+             * Y la constante nueva no sirve tal cual: Pdo\Mysql aparece en
+             * PHP 8.4, y este proyecto tiene que correr desde 7.4, que es la
+             * ultima version que soporta Windows 7. Por eso se elige una u
+             * otra segun la version que este ejecutando; PHP solo evalua la
+             * rama que toca, asi que en 7.4 nunca se toca la clase nueva.
+             */
+            'options' => (extension_loaded('pdo_mysql') && env('MYSQL_ATTR_SSL_CA'))
+                ? [
+                    (PHP_VERSION_ID >= 80400 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA)
+                        => env('MYSQL_ATTR_SSL_CA'),
+                  ]
+                : [],
         ],
 
         'pgsql' => [
