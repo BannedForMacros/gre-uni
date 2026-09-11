@@ -2,6 +2,22 @@
 @inject('carbon', 'Carbon\Carbon')
 <title>Guia Ingreso</title>
 
+{{--
+  Guia de Ingreso.
+
+  Misma maquetacion que la guia de salida, para que los dos documentos de la
+  empresa se lean igual: cabecera con el recuadro del RUC y el numero, secciones
+  con titulo y linea, y la tabla de bienes.
+
+  El titulo NO dice "Remision Remitente Electronica": una guia de ingreso es un
+  documento interno de recepcion, no se envia a SUNAT, y ponerle ese nombre
+  seria declarar algo que no es.
+
+  Tampoco lleva los bloques de traslado -punto de partida y llegada,
+  transportista- porque en un ingreso la mercaderia llega, no sale: esos datos
+  no se capturan en esta pantalla.
+--}}
+
 <head style='font-size:12px;'>
   <style>
     @page {
@@ -36,61 +52,15 @@
       font-family: sans-serif;
     }
 
-
-    .logo {
-      /* width: 150px;
-      height: 120px; */
-      /* content: url(logo.jpg); */
-    }
-
-    .table_rounded {
-      border-radius: 10px;
+    .table_no_rounded {
+      border-radius: 1px;
       border: 1px;
       border-color: rgb(88, 88, 88);
       border-style: solid
     }
 
-    /* .tabla_comprobante {
-      border-left: 0.01em solid black;
-      border-right: 0;
-      border-top: 0.01em solid black;
-      border-bottom: 0;
-      border-collapse: collapse;
-      border-radius: 0px 0px 100px 100px;
-
-    } */
-
-    /* .tabla_comprobante td,
-    .tabla_comprobante th {
-      border-left: 0;
-      border-right: 0.01em solid black;
-      border-top: 0;
+    .table_det_bottom td {
       border-bottom: 0.01em solid black;
-    } */
-
-    .div_text {
-      border-collapse: collapse;
-      border-bottom: 1px solid;
-      display: inline-block;
-      font-size: 1.2rem;
-    }
-
-    .div_label {
-      border-collapse: collapse;
-      display: inline-block;
-      font-size: 1.2rem;
-    }
-
-    .div_row {
-      margin-top: 35px
-    }
-
-    .div_inline {
-      display: inline;
-    }
-
-    .table_det td {
-      border-top: 0.01em solid black;
       height: 1.8rem;
     }
 
@@ -100,17 +70,24 @@
       border-bottom-width: 0.01em
     }
 
+    .table_titulo_cabecera {
+      border-bottom: 0.12em solid black;
+      height: 1.8rem;
+    }
+
+    .table_titulo_cabecera_top {
+      border-top: 0.12em solid black;
+      height: 1.8rem;
+    }
+
     .td_subtotal {
       height: 2rem;
       border-bottom-style: solid;
       border-bottom-width: 0.01em
     }
 
-    .table_consulta_qr td {
-      height: 4rem;
-      padding-left: 2rem;
-      border-style: solid;
-      border-width: 0.01em
+    .th_items {
+      background-color: rgba(211, 205, 205, 0.664)
     }
   </style>
 </head>
@@ -119,65 +96,52 @@
 
   <header>
     <div>
-      {{-- <img src={{ url('img/cu/logoweb.png') }} class="logo floatLeft" width="220"> --}}
-
     </div>
   </header>
+
   <main style='font-size:10px;'>
-    {{-- tabla de cabecera --}}
+
+    {{-- Cabecera --}}
     <table style="margin-top: -6.5rem; width: 100%">
       <tr>
-        <td style="text-align: center; width: 32rem;">
-          {{-- El logo sale de Configuracion de Empresa, de cada cliente.
-
-               Estaba fijo a img/logo.png, que en el proyecto anterior era
-               correcto porque era de UN cliente. Aqui se instala en un centenar:
-               con la ruta fija, cualquiera que no suba el suyo imprimiria sus
-               guias con la marca de otra empresa. Si no hay logo configurado no
-               se pinta nada, que es mejor que pintar el de un tercero. --}}
+        <td style="text-align: left; width: 32rem;">
+          {{-- El logo sale de Configuracion de Empresa, de cada cliente. Con una
+               ruta fija, una instalacion que no suba el suyo imprimiria sus
+               guias con la marca de otra empresa. --}}
           @php($empresaLogo = \App\Support\Empresa::logoPath())
           @if($empresaLogo)
             <img src="{{ $empresaLogo }}" class="logo floatLeft" width="230">
           @endif
-          <table class="table_rounded" style="width: 100%; height: 5rem; font-size: 10px">
+          <table class="" style="width: 100%; height: 2rem; font-size: 10px; margin-top: -12px">
             <tbody>
               <tr>
-                <td style="text-align: center; font-size: 11px"><b>{{ Str::upper($cabecera->nombre_entidad) }}</b></td>
+                <td style="text-align: left; font-size: 11px"><b>{{ Str::upper($cabecera->nombre_entidad) }}</b></td>
               </tr>
               <tr>
-                <td><b>Direccion: </b>{{ $cabecera->direccion_entidad }}</td>
+                <td>{{ $cabecera->direccion_entidad }}</td>
               </tr>
               <tr>
-                <td><b>Telf: </b>{{ $cabecera->telefono_entidad }}</td>
+                <td>{{ $cabecera->telefono_entidad }}</td>
               </tr>
             </tbody>
           </table>
         </td>
         <td></td>
-        <td style="width: 30rem">
-          <table class="table_rounded" style="width: 100%; height: 15rem">
+        <td style="width: 32rem">
+          <table class="table_no_rounded" style="width: 100%; height: 10rem">
             <tbody>
               <tr>
-                <td></td>
-              </tr>
-              <tr>
-                <td style="text-align: center; font-size: 22px">GUIA DE INGRESO</td>
-              </tr>
-              {{-- <tr>
-                <td style="text-align: center; font-size: 14px; ">E L E C T R O N I C A</td>
-              </tr> --}}
-              <tr>
                 <td><br></td>
               </tr>
               <tr>
-                <td style="text-align: center;font-size: 12px">RUC: {{ $cabecera->ruc_entidad }}</td>
+                <td style="text-align: center;font-size: 13px">RUC: {{ $cabecera->ruc_entidad }}</td>
               </tr>
               <tr>
-                <td><br></td>
+                <td style="text-align: center; font-size: 14px"><b>GUIA DE INGRESO</b></td>
               </tr>
               <tr>
-                <td style="text-align: center; font-size: 22px">
-                  {{ Str::upper($documento->serie) }}-{{ $documento->numero }} </td>
+                <td style="text-align: center; font-size: 14px">
+                  Nº {{ Str::upper($documento->serie) }}-{{ $documento->numero }}</td>
               </tr>
               <tr>
                 <td><br></td>
@@ -188,97 +152,105 @@
       </tr>
     </table>
 
-    {{-- tabla de datos de persona --}}
-    <table class="table_rounded" style="width: 100%">
+    {{-- Datos del documento --}}
+    <table style="width: 100%;" class="table_titulo_cabecera">
+      <tr>
+        <td><b>Datos del documento</b></td>
+      </tr>
+    </table>
+
+    <table class="" style="width: 100%; margin-top: 0.5rem">
       <tbody>
         <tr>
-          <td style="width: 36rem"><b>Razon Social:</b> {{ $documento->proveedor_nombre }}</td>
-          <td><b>RUC:</b>{{ $documento->proveedor_ruc }}</td>
+          <td style="width: 8rem"><b>Fecha Emision:</b></td>
+          {{-- Fecha y hora van en columnas separadas. Antes se leia
+               fecha_hora_emision, que no existe, y Carbon::parse(null)
+               imprimia la fecha de HOY. --}}
+          <td style="width: 10rem">{{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
+          <td style="width: 7rem"><b>Tipo Operacion:</b></td>
+          <td style="width: 16rem">{{ $documento->tipo_operacion_nombre }}</td>
         </tr>
         <tr>
-          <td style="width: 36rem"><b>Fecha Emision:</b>
-            {{-- fecha_hora_emision NO existe: las columnas son fecha_emision y
-                 hora_emision, por separado. Eloquent devuelve null para un
-                 atributo desconocido y Carbon::parse(null) da la fecha de HOY,
-                 asi que una guia de septiembre reimpresa en diciembre salia
-                 fechada en diciembre. En un documento con valor legal. --}}
-            {{ $carbon::parse(trim($documento->fecha_emision . ' ' . $documento->hora_emision))->format('d/m/Y H:i:s') }}</td>
-          {{-- Apuntaba a $documento->cliente_direccion, que NO es una columna de
-               guia_ingresos: Eloquent devolvia null y este hueco salia vacio en
-               todas las guias de todos los clientes, desde siempre.
-
-               La direccion del proveedor no se guarda en una guia de ingreso
-               -el formulario no la pide-, asi que aqui no hay nada que pintar.
-               Se deja el rotulo, que es parte del formato, y se documenta:
-               para llenarlo hay que capturarla al registrar la guia, como ya
-               se hace en guia de salida con proveedor_direccion. --}}
-          <td><b>Direccion:</b> </td>
+          <td style="width: 8rem"><b>Almacen:</b></td>
+          <td style="width: 10rem">{{ $documento->almacen_nombre }}</td>
+          <td style="width: 7rem"><b>Forma de Pago:</b></td>
+          <td style="width: 16rem">{{ $documento->forma_pago_nombre }}</td>
         </tr>
         <tr>
-          <td style="width: 36rem"><b>Tipo Moneda:</b> {{ $guia->texto_moneda }}</td>
-          <td><b>Tipo Operacion:</b> {{ $documento->tipo_operacion_nombre }}</td>
+          <td style="width: 8rem"><b>Tipo Moneda:</b></td>
+          <td style="width: 10rem">{{ $guia->texto_moneda }}</td>
+          <td style="width: 7rem"><b>Doc. Relacionado:</b></td>
+          <td style="width: 16rem">
+            @if ($documento->pedido_serie || $documento->pedido_numero)
+              {{ $documento->pedido_serie }}-{{ $documento->pedido_numero }}
+            @endif
+          </td>
         </tr>
-        <tr></tr>
       </tbody>
     </table>
 
-    {{-- tabla de detalle items --}}
-    <table class="table_rounded" style="width: 100%; margin-top: 10px; border-spacing: 0; font-size: 10px">
+    {{-- Proveedor --}}
+    <table style="width: 100%;" class="table_titulo_cabecera_top">
+      <tr>
+        <td><b>Datos del proveedor</b></td>
+      </tr>
+    </table>
+
+    <table class="" style="width: 100%; margin-top: -0.2rem">
+      <tbody>
+        <tr>
+          <td style="width: 8rem"><b>Ruc:</b></td>
+          <td style="width: 10rem">{{ $documento->proveedor_ruc }}</td>
+          <td style="width: 7rem"><b>Razon social:</b></td>
+          <td style="width: 16rem">{{ $documento->proveedor_nombre }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    {{-- Bienes --}}
+    <table style="width: 100%;" class="table_titulo_cabecera_top">
+      <tr>
+        <td><b>Informacion de Bienes recibidos</b></td>
+      </tr>
+    </table>
+
+    <table class="" style="width: 100%; margin-top: 10px; border-spacing: 0; font-size: 10px">
       <thead>
-        <th style="height: 1.8rem; width: 6rem;">Cantidad</th>
-        <th style="height: 1.8rem; width: 6rem">Codigo</th>
-        <th style="height: 1.8rem; width: 25rem">Descripcion</th>
-        <th style="height: 1.8rem; width: 6rem">Monto</th>
+        <th style="text-align: left; height: 0.8rem; width: 3rem;" class="th_items">Item</th>
+        <th style="text-align: left; height: 0.8rem; width: 6rem" class="th_items">Codigo Bien</th>
+        <th style="text-align: left; height: 0.8rem; width: 28rem" class="th_items">Descripcion</th>
+        <th style="text-align: right; height: 0.8rem; width: 5rem" class="th_items">Unidad</th>
+        <th style="text-align: right; height: 0.8rem; width: 5rem" class="th_items">Cantidad</th>
+        <th style="text-align: right; height: 0.8rem; width: 6rem" class="th_items">Monto</th>
         @if ($valorada == 1)
-          <th style="text-align: right; right: 0.8rem; width: 4rem" class="th_items">Costo</th>
-          <th style="text-align: right; right: 0.8rem; width: 4rem" class="th_items">Total</th>
+          <th style="text-align: right; height: 0.8rem; width: 5rem" class="th_items">Costo</th>
+          <th style="text-align: right; height: 0.8rem; width: 5rem" class="th_items">Total</th>
         @endif
       </thead>
       <tbody>
         @foreach ($detalle as $item)
-          <tr style="text-align: center;" class="table_det">
-            <td>{{ $item->cantidad }} {{ Str::upper($item->desc_unidad_medida) ?? 'UNI' }}</td>
+          <tr style="text-align: left;" class="table_det_bottom">
+            <td>{{ $nro++ }}</td>
             <td>{{ $item->codarticulo }}</td>
-            <td>{{ $item->descripcion }}</td>
-            <td>{{ $item->importe }}</td>
+            <td>{{ $item->descripcion }}@if ($item->codigo_barra) | {{ $item->codigo_barra }}@endif</td>
+            <td style="text-align: right">{{ Str::upper($item->desc_unidad_medida) ?? 'UNI' }}</td>
+            <td style="text-align: right">{{ $item->cantidad }}</td>
+            <td style="text-align: right">{{ $item->importe }}</td>
             @if ($valorada == 1)
               <td style="text-align: right">{{ $item->costo_articulo }}</td>
               <td style="text-align: right">{{ $item->costo_total }}</td>
             @endif
           </tr>
         @endforeach
-
       </tbody>
-
-      @if ($valorada == 1)
-        <tfoot >
-          <tr class="table_det">
-            <td colspan="5" style="text-align: right"><b>Valor Neto</b></td>
-            <td style="text-align: right">{{ $guia->total_venta_gravada }}</td>
-          </tr>
-          <tr class="">
-            <td colspan="5" style="text-align: right"><b>Exonerado</b></td>
-            <td style="text-align: right">{{ $guia->monto_descuento }}</td>
-          </tr>
-          <tr class="">
-            <td colspan="5" style="text-align: right"><b>I.G.V</b></td>
-            <td style="text-align: right">{{ $guia->total_igv }}</td>
-          </tr>
-          <tr class="">
-            <td colspan="5" style="text-align: right"><b>Total</b></td>
-            <td style="text-align: right">{{ $guia->total }}</td>
-          </tr>
-        </tfoot>
-      @endif
-
     </table>
 
-    {{-- tabla de leyenda y subtotal --}}
-    <table style="margin-top: 20px; font-size: 10px">
+    {{-- Importe en letras, datos adicionales y totales --}}
+    <table style="margin-top: 20px; width: 100%; font-size: 10px">
       <tbody>
         <tr>
           <td style="width: 33rem">
-            <table style="border-spacing: 0;width: 100%; font-size: 10px">
+            <table style="border-spacing: 0; width: 100%; font-size: 10px">
               <tbody>
                 <tr>
                   <td colspan="2"><b>SON {{ $guia->total_letras }}</b></td>
@@ -290,11 +262,9 @@
                   <td style="width: 10rem">LEYENDA: </td>
                   <td></td>
                 </tr>
-
                 <tr class="table_leyenda">
                   <td>FORMA DE PAGO: </td>
-                  {{-- <td>{{ $guia->texto_forma_pago }}</td> --}}
-                  <td>Contado</td>
+                  <td>{{ $documento->forma_pago_nombre ?: 'Contado' }}</td>
                 </tr>
                 <tr class="table_leyenda">
                   <td>VENDEDOR: </td>
@@ -302,18 +272,14 @@
                 </tr>
               </tbody>
             </table>
-
           </td>
-          <td style="width: 14rem">
-
-          </td>
+          <td style="width: 3rem"></td>
           <td style="width: 16rem">
-            <table style="border-spacing: 0;width: 100%; font-size: 10px">
+            <table style="border-spacing: 0; width: 100%; font-size: 10px">
               <tbody style="text-align: right">
                 <tr>
                   <td><b>Op. Gravadas: </b></td>
-                  <td class="td_subtotal" style="width: 6rem; padding-right: 1rem">{{ $guia->total_venta_gravada }}
-                  </td>
+                  <td class="td_subtotal" style="width: 6rem; padding-right: 1rem">{{ $guia->total_venta_gravada }}</td>
                 </tr>
                 <tr>
                   <td><b>IGV: </b></td>
@@ -325,28 +291,26 @@
                 </tr>
               </tbody>
             </table>
-
           </td>
         </tr>
       </tbody>
     </table>
 
-    {{-- linea de separacion --}}
-    <table style="width: 100%">
+    {{-- Observaciones --}}
+    <table style="width: 100%;" class="table_titulo_cabecera">
+      <tr>
+        <td><b>Observaciones</b></td>
+      </tr>
+    </table>
+
+    <table class="" style="width: 100%; margin-top: -0.2rem">
       <tbody>
         <tr>
-          <td class="td_subtotal"></td>
+          <td style="width: 100%">{{ $documento->comentario }}</td>
         </tr>
       </tbody>
     </table>
 
-    {{-- Aqui iba una tabla de consulta y un QR, dentro de un display:none.
-
-         No se veia -ni se ve- pero se generaba igual: 221 divs y 23 de los
-         33 KB del html que dompdf tiene que analizar, un tercio del tiempo de
-         render, para no pintar nada. Si algun dia se necesita el QR, se
-         recupera del historial: el codigo iba fijo a mano y la url apuntaba a
-         un dominio de ejemplo. --}}
   </main>
 </body>
 
