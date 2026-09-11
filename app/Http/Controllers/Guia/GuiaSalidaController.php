@@ -1788,126 +1788,103 @@ public function storeDataMart(Request $request)
         $log = "";
 
         $credencial = Parametro::find(1)->valor;
-        try {
-            $send = Http::withHeaders(['Credencial' => $credencial])
-                        ->asJson() // Asegurarse de que se envíe como JSON
-                        // ->put("{$api_facturacion}", $body)->object();
-                        ->put("{$api_facturacion}", $body)->object();
-            // Antes, tras leer el MensajeError, se hacia $send->CodigoHash
-            // "para ver si existia". En un rechazo no existe, eso lanza
-            // ErrorException y el catch PISABA el mensaje del facturador con
-            // un generico "Ocurrio un error con el envio API Guia". El usuario
-            // nunca llegaba a leer POR QUE se rechazo su guia.
-            if ($send == null) {
-                $procede = false;
-                $msj = "No se obtuvo respuesta del facturador";
-                $msj_tipo = "error";
-            } elseif (empty($send->Exito)) {
-                $procede = false;
-                $msj = "Ocurrio un error en el facturador: " . ($send->MensajeError ?? 'sin detalle');
-                $msj_tipo = "error";
-            } elseif (! isset($send->CodigoHash)) {
-                $procede = false;
-                $msj = "El facturador respondio sin codigo hash; no se da por emitida.";
-                $msj_tipo = "error";
-                $log = json_encode($send);
-            }
 
-        } catch (Exception $e) {
-            //throw $th;
-            // dd($e);
-            $procede = false;
-            $msj = "Ocurrio un error en el envio a sunat";
-            $msj_tipo = "error";
-            $log = "{$e}";
-        }
+        // ---- Antes de emitir: preguntar si ya esta emitida --------------
+        // Si un intento anterior llego a SUNAT pero fallo el guardado local,
+        // la guia sigue sin marcar y "Reintentar" la emitiria DOS veces. El
+        // facturador ya tiene un endpoint de consulta (parametro 8): si
+        // devuelve el PDF de T001-N, el documento existe y solo hay que
+        // recuperar el registro local, no emitir otra vez.
+        $consulta = $this->consultarPdfEnFacturador($guia, $credencial);
 
-        if ($procede == true) {
-
-            $store = new FacturacionEnvio();
-            $store->tabla = 'guia_salidas';
-            $store->registro_id = $id;
-            $store->trama_json = json_encode($body);
-            $store->codigo_hash = $send->CodigoHash;
-            $store->codigo_qr = $send->CodigoQr;
-            $store->pdf417 = $send->pdf417;
-            $store->exito = $send->Exito;
-            $store->mensaje_error = $send->MensajeError;
-            $store->pila = $send->Pila;
+        if ($consulta['existe']) {
+            $send = (object) [
+                'Exito' => true, 'MensajeError' => 'Recuperado: el facturador ya tenia emitido este documento.',
+                'CodigoHash' => null, 'CodigoQr' => null, 'pdf417' => null, 'Pila' => null,
+            ];
+            $msj = "La guia ya estaba emitida en el facturador; se recupero el registro. <br><a class='btn btn-success' href='{$url_button}' target='_blank'><i class='fa fa-external-link'></i> ver</a>";
+        } else {
             try {
-                // dd($store);
-                $store->save();
-            } catch (Exception $e) {
-                //throw $th;
-                // dd($e);
-                $procede = false;
-                $msj = "Ocurrio un error al guardar la respuesta del envio";
-                $msj_tipo = "error";
-                $log = "{$e}";
-            }
-        }
-
-        if ($procede == true) {//store auditoria
-            $this->registrarAuditoria($guia->id, 1, 'facturacion_envios', json_encode($body), strip_tags($msj));
-        }
-
-        if ($procede == true) {//actulizamos el id del envio en la tabla original
-
-            $guia->envio_id = $store->id;
-            $guia->enviado_facturador = 1;
-
-            try {
-
-                $guia->save();
-
-            } catch (Exception $e) {
-                //throw $th;
-                // dd($e);
-                $procede = false;
-                $msj = "Ocurrio un error al actualizar el envio en la guia";
-                $msj_tipo = "error";
-                $log = "{$e}";
-            }
-        }
-
-        if ($procede == true) {//obtener PDF y XML
-            // dd('pdf');
-            $api_facturacion_consultas = Parametro::find(8)->valor;
-            $serie_format = str_pad($guia->serie, 3, "0", STR_PAD_LEFT);
-            $bodyConsulta = array(
-                'token' => $credencial,
-                'serie' => "T{$serie_format}-{$guia->numero}",
-                'tipodocumentoconsulta' => '09',
-                'fecha' => $guia->fecha_emision,
-                'tipodocumentorespuesta' => 'PDF'
-            );
-            // dd($bodyConsulta);
-            try {
-                $getPdf = Http::withHeaders(['Credencial' => $credencial])->post($api_facturacion_consultas, $bodyConsulta)->object();
-                if ($getPdf->success == true) {
-                    $storePdf = FacturacionEnvio::find($store->id);
-                    $storePdf->pdf = $getPdf->data;
-                    try {
-                        $storePdf->save();
-
-                    } catch (Exception $e) {
-                        //throw $th;
-                        // dd($e);
-
-                    }
+                $send = Http::withHeaders(['Credencial' => $credencial])
+                            ->asJson()
+                            ->put("{$api_facturacion}", $body)->object();
+                // Antes, tras leer el MensajeError, se hacia $send->CodigoHash
+                // "para ver si existia". En un rechazo no existe, eso lanza
+                // ErrorException y el catch PISABA el mensaje del facturador
+                // con un generico. El usuario nunca leia POR QUE se rechazo.
+                if ($send == null) {
+                    $procede = false;
+                    $msj = "No se obtuvo respuesta del facturador";
+                    $msj_tipo = "error";
+                } elseif (empty($send->Exito)) {
+                    $procede = false;
+                    $msj = "Ocurrio un error en el facturador: " . ($send->MensajeError ?? 'sin detalle');
+                    $msj_tipo = "error";
+                } elseif (! isset($send->CodigoHash)) {
+                    $procede = false;
+                    $msj = "El facturador respondio sin codigo hash; no se da por emitida.";
+                    $msj_tipo = "error";
+                    $log = json_encode($send);
                 }
-                // dd($getPdf);
             } catch (Exception $e) {
-                //throw $th;
-                // dd($e);
-                // $procede = false;
-                // $msj = "";
+                $procede = false;
+                $msj = "Ocurrio un error en el envio a sunat";
+                $msj_tipo = "error";
+                $log = "{$e}";
             }
-            // dd($getPdf);
-            // dd($getPdf->data);
-
         }
 
+        // ---- Registro local: todo o nada --------------------------------
+        // Envio, auditoria y marca en la guia van en UNA transaccion. Antes
+        // eran tres escrituras sueltas: si fallaba la tercera, quedaba el
+        // envio registrado y la guia sin marcar, es decir, emitida en SUNAT
+        // y "pendiente" en pantalla.
+        $store = null;
+        if ($procede == true) {
+            try {
+                $store = DB::transaction(function () use ($guia, $id, $body, $send, $consulta, $msj) {
+                    $store = new FacturacionEnvio();
+                    $store->tabla = 'guia_salidas';
+                    $store->registro_id = $id;
+                    $store->trama_json = json_encode($body);
+                    $store->codigo_hash = $send->CodigoHash;
+                    $store->codigo_qr = $send->CodigoQr;
+                    $store->pdf417 = $send->pdf417;
+                    $store->exito = $send->Exito;
+                    $store->mensaje_error = $send->MensajeError;
+                    $store->pila = $send->Pila;
+                    $store->pdf = $consulta['pdf'];
+                    $store->save();
+
+                    $this->registrarAuditoria($guia->id, 1, 'facturacion_envios', json_encode($body), strip_tags($msj));
+
+                    $guia->envio_id = $store->id;
+                    $guia->enviado_facturador = 1;
+                    $guia->save();
+
+                    return $store;
+                });
+            } catch (\Throwable $e) {
+                $procede = false;
+                $msj = "El facturador acepto la guia pero no se pudo registrar localmente. Al reintentar se recuperara sin volver a emitir.";
+                $msj_tipo = "error";
+                $log = "{$e}";
+                Log::error('facturacionElectronica: fallo el registro local tras aceptar el facturador', ['guia_id' => $id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        // ---- PDF ----------------------------------------------------------
+        if ($procede == true && $store->pdf === null) {
+            $pdf = $this->consultarPdfEnFacturador($guia, $credencial);
+            if ($pdf['existe']) {
+                try {
+                    $store->pdf = $pdf['pdf'];
+                    $store->save();
+                } catch (Exception $e) {
+                    Log::warning('No se pudo guardar el PDF del envio ' . $store->id . ': ' . $e->getMessage());
+                }
+            }
+        }
         if ($procede == false) {
             if ($panel_origen != 'index') {
                 $msj = "{$msj} <br> <button class='btn btn-success btn-sm' id='btnReintentarFacturar' data-id='{$id}'> <i class='fa-regular fa-paper-plane'></i> Reintentar Facturar</button>";
@@ -1917,6 +1894,43 @@ public function storeDataMart(Request $request)
 
 
         return response()->json(['procede' => $procede, 'msj' => $msj, 'msj_tipo' => $msj_tipo, 'log' => $log]);
+    }
+
+    /**
+     * Pregunta al facturador por el PDF de la guia (parametro 8).
+     *
+     * Devuelve ['existe' => bool, 'pdf' => base64|null]. "existe" solo es true
+     * cuando el facturador responde success con datos: cualquier otra cosa
+     * -success false, caido, HTML de error- cuenta como "no se pudo confirmar"
+     * y el que llama decide. NUNCA emite nada: es una consulta.
+     */
+    private function consultarPdfEnFacturador(GuiaSalida $guia, $credencial): array
+    {
+        $url = optional(Parametro::find(8))->valor;
+        if (empty($url)) {
+            return ['existe' => false, 'pdf' => null];
+        }
+
+        $serie_format = str_pad($guia->serie, 3, '0', STR_PAD_LEFT);
+
+        try {
+            $r = Http::withHeaders(['Credencial' => $credencial])->post($url, [
+                'token'                  => $credencial,
+                'serie'                  => "T{$serie_format}-{$guia->numero}",
+                'tipodocumentoconsulta'  => '09',
+                'fecha'                  => $guia->fecha_emision,
+                'tipodocumentorespuesta' => 'PDF',
+            ])->object();
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo consultar el facturador por la guia ' . $guia->id . ': ' . $e->getMessage());
+            return ['existe' => false, 'pdf' => null];
+        }
+
+        if (is_object($r) && ! empty($r->success) && ! empty($r->data) && is_string($r->data)) {
+            return ['existe' => true, 'pdf' => $r->data];
+        }
+
+        return ['existe' => false, 'pdf' => null];
     }
 
     function limpiarCaracteresEspeciales($texto) {

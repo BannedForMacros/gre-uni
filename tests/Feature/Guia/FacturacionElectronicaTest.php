@@ -50,7 +50,8 @@ class FacturacionElectronicaTest extends TestCase
         }
     }
 
-    /** El facturador acepta la guia. */
+    /** El facturador acepta la guia. La consulta dice "no existe" hasta que
+     *  se emite, y despues devuelve el PDF: como el facturador real. */
     private function facturadorAcepta(): void
     {
         Http::fake([
@@ -58,7 +59,9 @@ class FacturacionElectronicaTest extends TestCase
                 'Exito' => true, 'MensajeError' => '', 'CodigoHash' => 'HASH123',
                 'CodigoQr' => 'QR123', 'pdf417' => '', 'Pila' => '',
             ]),
-            self::CONSULTAS => Http::response(['success' => true, 'data' => 'JVBERi0='], 200),
+            self::CONSULTAS => Http::sequence()
+                ->push(['success' => false, 'data' => null, 'message' => 'Documento no encontrado'])
+                ->push(['success' => true, 'data' => 'JVBERi0=']),
             '*'            => Http::response('', 500),
         ]);
     }
@@ -121,7 +124,9 @@ class FacturacionElectronicaTest extends TestCase
         $this->enviar($guia->id)->assertOk()->assertJson(['procede' => true]);
 
         // Exactamente UNA emision, al facturador configurado, con la credencial.
-        Http::assertSentCount(2);   // emision + consulta del PDF
+        // consulta previa (no existe) + emision + consulta del PDF ya emitido
+        Http::assertSentCount(3);
+        Http::assertSent(fn (Request $r) => $r->url() === self::CONSULTAS && $r['serie'] === 'T001-4020');
         Http::assertSent(function (Request $r) {
             return $r->url() === self::FACTURADOR
                 && $r->method() === 'PUT'
@@ -276,5 +281,81 @@ class FacturacionElectronicaTest extends TestCase
         $this->enviar($guia->id)->assertOk()->assertJson(['procede' => false]);
 
         Http::assertNothingSent();
+    }
+
+    // -----------------------------------------------------------------
+    // Reintentar sin emitir dos veces
+    // -----------------------------------------------------------------
+
+    public function test_si_falla_el_registro_local_no_queda_ni_envio_ni_guia_marcada_a_medias(): void
+    {
+        // El facturador acepta, pero algo revienta despues de guardar el
+        // envio. Antes quedaba el envio registrado y la guia sin marcar. Con
+        // la transaccion no queda ninguno de los dos, y el reintento pasa por
+        // la consulta y recupera sin volver a emitir.
+        $this->facturadorAcepta();
+        $guia = $this->guia();
+
+        FacturacionEnvio::saved(function () {
+            throw new \RuntimeException('se cayo la base a mitad');
+        });
+
+        $r = $this->enviar($guia->id)->assertOk()->assertJson(['procede' => false]);
+
+        $this->assertStringContainsString('no se pudo registrar localmente', $r->json('msj'));
+        $this->assertSame(0, FacturacionEnvio::count(), 'La transaccion tiene que deshacer el envio');
+        $this->assertSame(0, (int) $guia->fresh()->enviado_facturador);
+    }
+
+    public function test_reintentar_una_guia_que_sunat_ya_tiene_la_recupera_sin_volver_a_emitir(): void
+    {
+        // Lo que pasa tras el caso anterior: la guia esta emitida en SUNAT y
+        // sin registro local. Reintentar NO puede hacer otro PUT.
+        Http::fake([
+            self::CONSULTAS  => Http::response(['success' => true, 'data' => 'JVBERi0=']),
+            self::FACTURADOR => Http::response(['Exito' => true, 'CodigoHash' => 'NO-DEBERIA-LLEGAR']),
+            '*'              => Http::response('', 500),
+        ]);
+        $guia = $this->guia();
+
+        $r = $this->enviar($guia->id)->assertOk()->assertJson(['procede' => true]);
+
+        Http::assertNotSent(fn (Request $req) => $req->url() === self::FACTURADOR);
+        $this->assertStringContainsString('ya estaba emitida', $r->json('msj'));
+
+        $envio = FacturacionEnvio::first();
+        $this->assertNotNull($envio);
+        $this->assertSame('JVBERi0=', $envio->pdf, 'El PDF recuperado queda guardado para verlo');
+        $this->assertSame(1, (int) $envio->exito);
+        $this->assertSame(1, (int) $guia->fresh()->enviado_facturador);
+        $this->assertSame($envio->id, (int) $guia->fresh()->envio_id);
+    }
+
+    public function test_si_la_consulta_dice_que_no_existe_entonces_si_se_emite(): void
+    {
+        $this->facturadorAcepta();
+        $guia = $this->guia();
+
+        $this->enviar($guia->id)->assertOk()->assertJson(['procede' => true]);
+
+        Http::assertSent(fn (Request $r) => $r->url() === self::FACTURADOR);
+    }
+
+    public function test_si_la_consulta_no_responde_se_emite_igual_como_antes(): void
+    {
+        // Decision consciente: la consulta caida no puede bloquear la primera
+        // emision de cada guia. La ventana de doble emision queda reducida a
+        // "fallo el registro local Y la consulta esta caida al reintentar".
+        Http::fake([
+            self::CONSULTAS  => Http::response('<html>Gateway Timeout</html>', 504),
+            self::FACTURADOR => Http::response(['Exito' => true, 'MensajeError' => '', 'CodigoHash' => 'H', 'CodigoQr' => '', 'pdf417' => '', 'Pila' => '']),
+            '*'              => Http::response('', 500),
+        ]);
+        $guia = $this->guia();
+
+        $this->enviar($guia->id)->assertOk()->assertJson(['procede' => true]);
+
+        Http::assertSent(fn (Request $r) => $r->url() === self::FACTURADOR);
+        $this->assertNull(FacturacionEnvio::first()->pdf, 'Sin PDF, pero emitida y registrada');
     }
 }
