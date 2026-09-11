@@ -1,64 +1,111 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Guías de Remisión Electrónicas
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Registro y envío de guías de remisión (ingreso y salida) al DataMart del ERP y,
+cuando corresponde, a SUNAT a través del facturador.
 
-## About Laravel
+Se instala **en el servidor del propio cliente**, junto a su base de datos. No
+hay nube: todo —Laravel, MySQL, la ApiGRE y el SQL Server del ERP— vive en esa
+máquina. Eso condiciona casi todas las decisiones del proyecto:
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Sin paso de compilación en el front.** Alpine.js va vendorizado en
+  `public/js/vendor/`. No hay npm que ejecutar en el servidor del cliente.
+- **Sin recursos remotos.** Ni fuentes de Google ni CDNs: muchos clientes no
+  tienen salida a internet, y una hoja de estilo remota bloquea el render de la
+  pantalla hasta que la petición expira.
+- **PHP 7.4 como mínimo.** Es la última versión que soporta Windows 7, que es el
+  suelo del parque instalado.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Arrancar en desarrollo
 
-## Learning Laravel
+```bash
+./dev.sh          # puerto 8000
+./dev.sh 8080     # otro puerto
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**Usa `dev.sh`, no `php artisan serve` a secas.** `artisan serve` levanta el
+servidor que trae PHP, que atiende **una petición a la vez**. Al abrir un PDF el
+navegador abre conexiones extra para su visor y, con un solo hilo, la petición
+se bloquea: el PDF no termina y la aplicación entera deja de responder. El
+síntoma es que después de abrir un PDF, recargar cualquier pantalla se queda
+colgada.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Medido en este proyecto: con un hilo el PDF no terminaba en 45 s y dejaba el
+servidor sin responder; con cuatro, **174 ms** la primera vez y **95 ms** las
+siguientes.
 
-## Laravel Sponsors
+`PHP_CLI_SERVER_WORKERS` solo funciona en Linux y macOS. En Windows se ignora,
+pero allí no hace falta: el despliegue en el cliente va sobre Apache, que ya
+atiende varias peticiones a la vez.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+La ApiGRE tiene que estar levantada aparte (ver su propio README).
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+## Pruebas
 
-## Contributing
+```bash
+php vendor/bin/phpunit          # PHP: dominio y controladores
+node --test tests/js/           # JavaScript de las pantallas
+bash tests/js/paridad-php-js.sh # que PHP y JS calculen el MISMO total
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Las pruebas de PHP usan `RefreshDatabase`, que **vacía la base entera**. Por eso
+`phpunit.xml` apunta a `gre_uni_test`, separada de la de trabajo. No cambies eso
+sin saber lo que haces: apuntarlo a la base de un cliente le borra los datos.
 
-## Code of Conduct
+La prueba de paridad existe porque ya pasó una vez: PHP redondeaba el IGV por
+línea y luego sumaba, y el JavaScript sumaba primero y redondeaba al final. Un
+céntimo de diferencia entre lo que el usuario veía y lo que se guardaba.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Configuración
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Lo que cambia entre clientes vive en la tabla `parametros` y se administra desde
+**Configuraciones → Configuración de Empresa**: razón social, RUC, dirección,
+logo, y si la empresa trabaja con productos consignados.
 
-## License
+En el `.env` van la conexión a MySQL y la dirección de la ApiGRE:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+GRE_API_URL=http://localhost:8181     # RAIZ, sin ruta: de ahi salen /GREDMK y /api/v1
+```
+
+`GRE_API_URL` es la raíz y nada más. Las dos bases se derivan de ella
+(`config('gre.api.legacy')` y `config('gre.api.url')`); escribir la ruta en el
+`.env` fue un error que dejaba una instalación nueva apuntando a un sitio que no
+existe.
+
+### Datos de demostración
+
+```bash
+php artisan db:seed --class=GuiaSalidaDemoSeeder
+```
+
+Se niega a correr si `APP_ENV` es production o si el nombre de la base no
+contiene «demo».
+
+---
+
+## Mantenimiento
+
+```bash
+php artisan gre:baseline          # marca como aplicadas las migraciones previas
+php artisan gre:guias-huerfanas   # lista guias con cabecera pero sin detalle
+```
+
+`gre:guias-huerfanas` solo informa; con `--purgar` borra, preguntando antes.
+Existen porque hasta hace poco la cabecera se escribía antes que el detalle y
+sin transacción: si una línea fallaba, quedaba una guía con total y cero líneas
+que el DataMart rechazaba después con «Documento incompleto». Ya no pueden
+nacer, pero en instalaciones antiguas las hay.
+
+---
+
+## Despliegue
+
+El objetivo es Windows 7 SP1 x64 / Windows Server 2008 R2 como mínimo, sobre
+Apache 2.4 y PHP 7.4.33. El detalle del paquete está en
+`apidmk-v2/deploy/STACK.md`.
