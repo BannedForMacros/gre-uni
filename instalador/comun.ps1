@@ -303,7 +303,13 @@ function Detener-Api {
   schtasks.exe /End /TN 'GRE-ApiGRE' 2>&1 | Out-Null
   Get-WmiObject Win32_Process -Filter "Name='java.exe'" |
     Where-Object { $_.CommandLine -like '*api-gre.jar*' } |
-    ForEach-Object { $_.Terminate() | Out-Null }
+    ForEach-Object {
+      # Terminate() lanza "No encontrado" si el proceso murio entre la consulta
+      # y la llamada, y esa excepcion abortaba la actualizacion entera: se
+      # respaldaba, se detenian los servicios y se revertia sin haber copiado
+      # nada. Stop-Process no lanza y se ignora lo que ya no exista.
+      try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch { }
+    }
   Start-Sleep 2
   $global:LASTEXITCODE = 0
 }
