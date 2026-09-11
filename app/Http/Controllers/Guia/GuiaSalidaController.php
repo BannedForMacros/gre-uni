@@ -1610,22 +1610,48 @@ public function storeDataMart(Request $request)
     {
         $panel_origen = $request->post('panel_origen');
 
-        $api_facturacion = Parametro::find(7)->valor;
-
         $id = $request->post('id');
         $guia = GuiaSalida::find($id);
 
+        // Esta es la unica accion del sistema con efecto fuera de la empresa:
+        // una guia emitida ante SUNAT no se deshace. Antes no habia ninguna
+        // comprobacion y se podia emitir dos veces la misma guia, una anulada
+        // o un avance a medio llenar. Todo eso se corta aqui, ANTES de armar
+        // la trama.
+        $noSePuede = null;
+        if ($guia === null) {
+            $noSePuede = 'La guia no existe.';
+        } elseif ((int) $guia->enviado_facturador === 1) {
+            $noSePuede = "La guia {$guia->serie}-{$guia->numero} ya fue enviada al facturador. No se vuelve a emitir.";
+        } elseif ((int) $guia->guia_estado_id === 0) {
+            $noSePuede = 'La guia esta anulada; no se puede enviar.';
+        } elseif ((int) $guia->guia_estado_id === 4) {
+            $noSePuede = 'La guia es un avance sin terminar; complete el registro antes de enviarla.';
+        }
+
+        $api_facturacion = optional(Parametro::find(7))->valor;
+        if ($noSePuede === null && empty($api_facturacion)) {
+            $noSePuede = 'No esta configurada la URL del facturador (parametro 7).';
+        }
+
+        $detalle = $guia ? GuiaSalidaDetalle::where('guia_salida_id', $guia->id)->get() : collect();
+        if ($noSePuede === null && $detalle->isEmpty()) {
+            $noSePuede = 'La guia no tiene lineas; no se puede enviar vacia.';
+        }
+
+        if ($noSePuede !== null) {
+            return response()->json(['procede' => false, 'msj' => $noSePuede, 'msj_tipo' => 'error', 'log' => '']);
+        }
+
         $ruc_emisor = Parametro::find(2)->valor;
         $razon_social_emisor = Parametro::find(3)->valor;
-        // dd($guia);
 
         $cliente_documento_tipo = 6;
         if ($guia->cliente_documento_tipo_nombre == 'DNI') {
             $cliente_documento_tipo = 1;
         }
 
-        $detalle = GuiaSalidaDetalle::where('guia_salida_id', $guia->id)->get();
-        // dd($detalle);
+        $body_detalle = [];
         $nro = 1;
         foreach ($detalle as $item) {
             // $nombre_articulo_format = $item->descripcion;
@@ -1767,31 +1793,25 @@ public function storeDataMart(Request $request)
                         ->asJson() // Asegurarse de que se envíe como JSON
                         // ->put("{$api_facturacion}", $body)->object();
                         ->put("{$api_facturacion}", $body)->object();
+            // Antes, tras leer el MensajeError, se hacia $send->CodigoHash
+            // "para ver si existia". En un rechazo no existe, eso lanza
+            // ErrorException y el catch PISABA el mensaje del facturador con
+            // un generico "Ocurrio un error con el envio API Guia". El usuario
+            // nunca llegaba a leer POR QUE se rechazo su guia.
             if ($send == null) {
                 $procede = false;
                 $msj = "No se obtuvo respuesta del facturador";
                 $msj_tipo = "error";
-            }
-            if ($send != null) {
-                // dd($send->Exito);
-                if ($send->Exito == false) {
-                    $procede = false;
-                    $msj = "Ocurrio un error en el facturador: {$send->MensajeError}";
-                    $msj_tipo = "error";
-                }
-            }
-            // dd($send);
-            try {
-                $send->CodigoHash;
-
-            } catch (Exception $e) {
-                // dd($e);
+            } elseif (empty($send->Exito)) {
                 $procede = false;
-                $msj = "Ocurrio un error con el envio API Guia";
+                $msj = "Ocurrio un error en el facturador: " . ($send->MensajeError ?? 'sin detalle');
                 $msj_tipo = "error";
-                $log = "{$e}";
+            } elseif (! isset($send->CodigoHash)) {
+                $procede = false;
+                $msj = "El facturador respondio sin codigo hash; no se da por emitida.";
+                $msj_tipo = "error";
+                $log = json_encode($send);
             }
-            // dd($send->CodigoHash);
 
         } catch (Exception $e) {
             //throw $th;

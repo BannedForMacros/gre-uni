@@ -461,14 +461,9 @@ var storeDataMart = function(formData){
           Swal.fire({ icon: 'success', title: 'Guía registrada en DataMart', timer: 2000, showConfirmButton: false });
         }
 
-        if (formData.get('guardar_avance') == 'false') {
-          if (formData.get('envio_sunat') == 1) {
-            if (formData.get('id') == '') {
-              formData.append('id', response.id);
-            }
-            facturacionElectronica(formData);
-          }
-        }
+        // Una guia de ingreso es un documento interno: no se envia a SUNAT.
+        // Aqui habia una llamada a facturacionElectronica(), que en esta
+        // pantalla ni siquiera existe (ReferenceError si llegaba a entrar).
       } else {
         Swal.fire({ icon: 'error', title: 'No se completó el registro', html: response.msj || 'Ocurrió un error.' });
       }
