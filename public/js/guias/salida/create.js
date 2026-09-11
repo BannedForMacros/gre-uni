@@ -53,6 +53,15 @@ var getSerie = function(formData){
     dataType: 'json',
     success: function(response){
       var serie = response.getSerie;
+      // El servidor ya no revienta con 500 cuando la ApiGRE esta caida o la
+      // serie no existe: responde procede:false y getSerie null. Sin esta
+      // guarda, leer .nuevo_numero de null rompia el script y el numero
+      // quedaba en blanco sin ningun aviso.
+      if (!serie) {
+        $('#span_numero').val('');
+        if (window.Gre && Gre.avisarError) { Gre.avisarError(response.msj || 'No se pudo obtener el numero de la serie.'); }
+        return;
+      }
       $('#span_numero').val(serie.nuevo_numero);
     }
   };

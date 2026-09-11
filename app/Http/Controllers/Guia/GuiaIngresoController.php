@@ -128,30 +128,40 @@ class GuiaIngresoController extends Controller
     {
         $api_datos = Parametro::find(6)->valor;
         $serie = $request->post('serie');
-        // dd($request->post());
-        $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros;
 
-        foreach ($listSeries as $item) {
+        // La ApiGRE caida (o respondiendo HTML) dejaba ->serienumeros sobre
+        // null, y una serie que el DataMart no conoce dejaba $getSerie sin
+        // definir: en ambos casos la ruta moria con 500 y el numero de la guia
+        // quedaba en blanco sin aviso. create.js lee response.getSerie.
+        $getSerie = null;
+        try {
+            $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros ?? [];
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            $listSeries = [];
+        }
+
+        foreach ((is_array($listSeries) ? $listSeries : []) as $item) {
             if ($serie == $item->numserie) {
                 $getSerie = $item;
             }
         }
 
-        
-        // dd($getSerie);
+        if ($getSerie == null) {
+            return response()->json(['procede' => false, 'msj' => 'No se pudo obtener el correlativo de la serie.', 'getSerie' => null]);
+        }
+
         $serieLocal = Serie::where('serie', $getSerie->numserie)->first();
-        // dd($serieLocal);
-        
+
         if ($serieLocal == null) {
             $getSerie->nuevo_numero = str_pad(($getSerie->ultimoValormarket + 1), 4, "0", STR_PAD_LEFT);
         }
-        
+
         if ($serieLocal != null) {
             $getSerie->nuevo_numero = str_pad(($serieLocal->numero + 1), 4, "0", STR_PAD_LEFT);
-            
         }
 
-        return response()->json(['getSerie' => $getSerie]);
+        return response()->json(['procede' => true, 'getSerie' => $getSerie]);
     }
 
     public function continuar(GuiaIngreso $guia)
@@ -1270,7 +1280,9 @@ public function storeDataMart(Request $request)
         $list = $consulta->get();
 
         foreach ($list as $key => $item) {
-            $list[$key]->estado_nombre = GuiaEstado::find($item->guia_estado_id)->nombre;
+            // optional(): el modal ofrece las anuladas (estado 0), que no
+            // existe en guia_estados; find() devolvia null y ->nombre era un 500.
+            $list[$key]->estado_nombre = optional(GuiaEstado::find($item->guia_estado_id))->nombre ?? '';
         }
         // dd($list);
         

@@ -309,19 +309,30 @@ class GuiaSalidaController extends Controller
     {
         $api_datos = Parametro::find(6)->valor;
         $serie = $request->post('serie');
-        // dd($request->post());
-        $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros;
 
-        foreach ($listSeries as $item) {
+        // La ApiGRE caida (o respondiendo HTML) dejaba ->serienumeros sobre
+        // null, y una serie que el DataMart no conoce dejaba $getSerie sin
+        // definir: en ambos casos la ruta moria con 500 y el numero de la guia
+        // quedaba en blanco sin aviso. create.js lee response.getSerie.
+        $getSerie = null;
+        try {
+            $listSeries = Http::get("{$api_datos}/obtenerSeriesNumerosGuia")->object()->serienumeros ?? [];
+        } catch (\Throwable $e) {
+            Log::error(__METHOD__ . ": " . $e->getMessage());
+            $listSeries = [];
+        }
+
+        foreach ((is_array($listSeries) ? $listSeries : []) as $item) {
             if ($serie == $item->numserie) {
                 $getSerie = $item;
             }
         }
 
+        if ($getSerie == null) {
+            return response()->json(['procede' => false, 'msj' => 'No se pudo obtener el correlativo de la serie.', 'getSerie' => null]);
+        }
 
-        // dd($getSerie);
         $serieLocal = Serie::where('serie', $getSerie->numserie)->first();
-        // dd($serieLocal);
 
         if ($serieLocal == null) {
             $getSerie->nuevo_numero = str_pad(($getSerie->ultimoValormarket + 1), 4, "0", STR_PAD_LEFT);
@@ -329,10 +340,9 @@ class GuiaSalidaController extends Controller
 
         if ($serieLocal != null) {
             $getSerie->nuevo_numero = str_pad(($serieLocal->numero + 1), 4, "0", STR_PAD_LEFT);
-
         }
 
-        return response()->json(['getSerie' => $getSerie]);
+        return response()->json(['procede' => true, 'getSerie' => $getSerie]);
     }
 
     /**
@@ -607,7 +617,7 @@ class GuiaSalidaController extends Controller
         if (strlen($valor) > $maximo) {
             $listArticulos = Http::post("{$api_datos}/ObtenerArticulo",
                 ['valor' => $valor, 'tipoconsulta' => $tipoconsulta, 'codestacion' => $codestacion, 'codalmacen' => $codalmacen, 'codlistaprecio' => $codlistaprecio]
-            )->object()->articulos;
+            )->object()->articulos ?? []; // ?? []: con la ApiGRE caida ->object() es null y esto era un 500
 
         }
 
@@ -670,6 +680,9 @@ class GuiaSalidaController extends Controller
         $msj = "Articulo encontrado";
         $msj_tipo = "success";
         $log = "";
+        // Sin esto, cuando el try fallaba la respuesta leia $getArticulo sin
+        // definir y la ruta moria con 500 en vez de avisar procede:false.
+        $getArticulo = null;
 
         try {
             $getArticulo = Http::post("{$api_datos}/ObtenerArticulo",
@@ -684,7 +697,7 @@ class GuiaSalidaController extends Controller
 
         if ($procede == true) {
             // dd(count($getArticulo));
-            if (count($getArticulo) == 0) {
+            if (! is_array($getArticulo) || count($getArticulo) == 0) {
                 $procede = false;
                 $msj = "Arcitulo no encontrado";
                 $msj_tipo = "error";
@@ -2043,6 +2056,7 @@ public function storeDataMart(Request $request)
                 // dd($bodyConsulta);
 
                 $procede = true;
+                $getPdf = null;
                 try {
 
                     $getPdf = Http::withHeaders([
@@ -2056,7 +2070,10 @@ public function storeDataMart(Request $request)
                     Log::warning('No se pudo obtener el PDF del comprobante: ' . $e->getMessage());
                 }
                 // dd($getPdf);
-                if ($getPdf->success == true) {
+                // La respuesta se leia a ciegas (->success sobre null) fuera
+                // del try: facturador caido o respondiendo HTML era un 500 en
+                // la pestana del PDF en vez del aviso de abajo.
+                if (is_object($getPdf) && ! empty($getPdf->success) && ! empty($getPdf->data)) {
                     $storePdf = FacturacionEnvio::find($getEnvioConPdf->id);
                     $storePdf->pdf = $getPdf->data;
                     try {
@@ -2067,6 +2084,8 @@ public function storeDataMart(Request $request)
                         Log::error(__METHOD__ . ": " . $e->getMessage());
                         $procede = false;
                     }
+                } else {
+                    $procede = false;
                 }
 
 
@@ -2084,7 +2103,9 @@ public function storeDataMart(Request $request)
             }
         }
 
-        if ($getEnvioConPdf != null) {
+        // Estaba al reves (!= null): con envio ya se respondio arriba, y sin
+        // envio la ruta devolvia una pagina en blanco.
+        if ($getEnvioConPdf == null) {
             return ('No existe envio de este comprobante');
         }
 
@@ -2183,7 +2204,8 @@ public function storeDataMart(Request $request)
     public function modalOtrasGuias(Request $request)
     {
         // dd('hola ');
-        return view('guia\salida\modal_otras_guias');
+        // Con barras invertidas solo resolvia en Windows; con puntos, en todos.
+        return view('guia.salida.modal_otras_guias');
     }
 
     public function buscarOtrasGuias(Request $request)
@@ -2203,7 +2225,9 @@ public function storeDataMart(Request $request)
         $list = $consulta->get();
 
         foreach ($list as $key => $item) {
-            $list[$key]->estado_nombre = GuiaEstado::find($item->guia_estado_id)->nombre;
+            // optional(): el modal ofrece las anuladas (estado 0), que no
+            // existe en guia_estados; find() devolvia null y ->nombre era un 500.
+            $list[$key]->estado_nombre = optional(GuiaEstado::find($item->guia_estado_id))->nombre ?? '';
         }
         // dd($list);
 
