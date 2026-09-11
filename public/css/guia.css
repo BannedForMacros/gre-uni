@@ -2050,3 +2050,79 @@ body { background: var(--gre-fondo); }
   .gre-marca-texto small { display: none; }
   .gre-usuario-nombre { display: none; }
 }
+
+/* --- La barra de accion, siempre abajo del todo ------------------------------
+   position:sticky solo pega el elemento cuando ESTARIA saliendo de la pantalla.
+   Con la guia vacia -o con pocos articulos- la pagina es mas corta que la
+   ventana, asi que la barra se quedaba donde termina el contenido y debajo
+   quedaba una franja blanca: el boton de guardar a media pantalla y el fondo
+   de la pagina asomando por abajo.
+
+   La cadena hasta la barra pasa a ser una columna flexible que ocupa al menos
+   la altura util de la ventana, y la barra se empuja al final con margin-top
+   auto. Con la pagina corta queda pegada abajo; con la pagina larga, sticky
+   sigue haciendo su trabajo y la mantiene a la vista al desplazar.
+   ------------------------------------------------------------------------- */
+/* Sin restar una altura de cabecera a mano: cualquier numero fijo se queda
+   corto o se pasa en cuanto la cabecera cambia -y se paso en 3 px, que bastaba
+   para sacar una barra de desplazamiento en una pagina que cabe entera-. Se
+   deja que el propio contenedor reparta la altura. */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#app > main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* El relleno vertical se quita del main y se devuelve al contenedor de cada
+   pantalla. Asi la barra de accion llega al borde de la ventana -su .gre no es
+   un contenedor y no recibe relleno- y las demas pantallas conservan su aire.
+   Se evita :has() a proposito: Chrome 109 lo soporta, pero un cliente con una
+   version anterior se quedaria con el titulo pegado a la cabecera. */
+#app > main {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+#app > main > .container,
+#app > main > .container-fluid {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.gre {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  padding-bottom: 0;
+}
+
+.gre > .container-fluid {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: 1rem;
+}
+
+/* El scope de Alpine del detalle es un div intermedio en guia de ingreso: si no
+   participa del flex, la barra no llega al fondo. */
+.gre > .container-fluid > [x-data] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+.gre-barra {
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
+/* #modales no pinta nada pero iba DESPUES de la barra, asi que empujaba la
+   franja en blanco por debajo. */
+.gre > .container-fluid > #modales:empty { display: none; }
