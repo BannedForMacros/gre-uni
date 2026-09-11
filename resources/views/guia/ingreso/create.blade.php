@@ -14,8 +14,18 @@
 --}}
 
 @php
-  // Una guia retomada no es "nueva": el distintivo dice en que estado esta.
-  $estadoGuia = isset($guia) ? optional(\App\Models\GuiaEstado::find($guia->guia_estado_id))->nombre : null;
+  /*
+   * Una guia retomada no es "nueva": el distintivo dice en que estado esta.
+   *
+   * Si la guia existe pero su estado no se puede resolver -la fila de
+   * guia_estados no esta, cosa que pasa en instalaciones a medio migrar-, NO se
+   * cae a "Nueva": eso seria decirle al usuario que esta empezando una guia
+   * cuando esta editando una que ya existe. En ese caso no se muestra nada.
+   */
+  $esGuiaExistente = isset($guia) && $guia->exists;
+  $estadoGuia = $esGuiaExistente
+      ? optional(\App\Models\GuiaEstado::find($guia->guia_estado_id))->nombre
+      : 'Nueva';
 
   // El proveedor que ya viene elegido, con la forma que devuelve el buscador,
   // para que una guia retomada y una recien buscada se pinten igual.
@@ -33,7 +43,7 @@
 
     <div class="gre-titulo">
       <h1>Guía de Ingreso</h1>
-      <span class="gre-etiqueta">{{ $estadoGuia ?? 'Nueva' }}</span>
+      @if($estadoGuia)<span class="gre-etiqueta">{{ $estadoGuia }}</span>@endif
     </div>
 
     <form name="form_store" id="form_store" onkeydown="return event.key != 'Enter';">

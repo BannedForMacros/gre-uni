@@ -1054,7 +1054,11 @@ public function storeDataMart(Request $request)
         $ruc_entidad = Parametro::find(2)->valor;
         $nombreEntidad = Parametro::find(3)->valor;
         $direccion_entidad = Parametro::find(4)->valor;
-        $telefonos = Parametro::find(4)->valor;
+        // El 4 es la direccion; los telefonos son el 5. Con el 4 la cabecera
+        // del PDF imprimia la direccion donde dice "Telf:", y cuando la
+        // direccion estaba vacia el telefono salia vacio tambien. Venia asi
+        // desde el proyecto anterior.
+        $telefonos = optional(Parametro::find(5))->valor;
         $cabecera = (object) array(
             'nombre_entidad' => $nombreEntidad,
             'direccion_entidad' => $direccion_entidad,

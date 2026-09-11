@@ -324,7 +324,6 @@ var callStore = (guardar_avance = false) => {
   }
 
   formData.append('descripcion_motivo_traslado', descripcion_motivo_traslado);
-  new Response(formData).text().then(console.log)
   // store(formData);
 
   var indicar_proveedor = $('#indicar_proveedor').prop('checked');

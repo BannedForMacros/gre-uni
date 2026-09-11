@@ -275,12 +275,10 @@ var callStore = (guardar_avance = false) => {
   formData.append('comentario', comentario);
   formData.append('guardar_avance', guardar_avance);
 
-  new Response(formData).text().then(console.log)
   // store(formData);
 
   var procede_store = true;
   var msj_store = '';
-  new Response(formData).text().then(console.log)
   if (formData.get('guardar_avance') == 'false') {
     
     if (formData.get('vendedor_nombre') == '') {
