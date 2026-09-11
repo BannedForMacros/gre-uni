@@ -18,3 +18,6 @@ yarn-error.log
 # es de cada empresa. Con uno commiteado, cualquier instalacion que no suba el
 # suyo imprimiria sus guias con la marca de otro cliente.
 /public/img/logo.png
+
+# Paquetes de instalacion armados por instalador/construir-paquete.sh
+/dist

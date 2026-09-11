@@ -1,0 +1,24 @@
+# Binarios de Windows que lleva el paquete. Versiones FIJADAS: nunca "la ultima".
+# construir-paquete.sh los descarga una vez a una cache y rechaza cualquier
+# archivo cuyo SHA-256 no coincida.
+#
+# Si un enlace desaparece (Apache Lounge solo publica la ultima compilacion),
+# el archivo sigue sirviendo desde la cache: guardela junto a los paquetes.
+#
+# WINDOWS 7: Apache y Visual C++ se fijan en la ultima generacion que todavia
+# corre ahi. Apache VS17 2.4.66 ("Runs on: 7 SP1 ... Server 2025", segun su
+# ReadMe) con Visual C++ 14.44 (VS2022; el enlace de Microsoft lleva la misma
+# huella SHA-256). La compilacion VS18 de Apache Lounge dice textualmente "The
+# binaries do not run on XP, 7 SP1 and 2003", y el Visual C++ 14.5x es de
+# VS2026: los dos dejarian fuera a los clientes con Windows 7, que es el minimo
+# soportado segun STACK.md.
+#
+# tipo: runtime = va dentro del paquete · herramienta = solo para armarlo
+#
+# nombre                                          tipo         sha256                                                            url
+php-7.4.33-Win32-vc15-x64.zip                     runtime      cdbb85b45f38f282f05764ca08648b5f92db99c75b2fb3848eb4a559f6553b48  https://windows.php.net/downloads/releases/archives/php-7.4.33-Win32-vc15-x64.zip
+httpd-2.4.66-Win64-VS17.zip                       runtime      2cd1f349b6705e43e784e876a233eeb1a859fa6b8abc693a91f87b35a368f7f9  https://www.apachelounge.com/download/VS17/binaries/httpd-2.4.66-251206-Win64-VS17.zip
+mysql-5.7.44-winx64.zip                           runtime      aed661fe8120254a1dc30f5a4d5de346681922f4847cf025e2d4084eca78e70e  https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.44-winx64.zip
+OpenJDK8U-jre_x64_windows_hotspot_8u504b01.zip    runtime      82e2cdc6693737c5998445b31f69668fa0da77c7705121053f6508ac84961123  https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u504-b01/OpenJDK8U-jre_x64_windows_hotspot_8u504b01.zip
+vc_redist-14.44.35211.x64.exe                     runtime      cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b  https://download.visualstudio.microsoft.com/download/pr/bd1c8d9d-ba95-4eee-bc6e-df1fcc876373/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe
+composer.phar                                     herramienta  8b3f41253363f0645402d1951d6e7f02adedeef29c16de6074763e463e25c23f  https://getcomposer.org/download/2.2.25/composer.phar
