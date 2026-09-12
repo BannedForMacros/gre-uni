@@ -77,28 +77,81 @@ $Telefonos = Preguntar -Texto 'Telefono' -Valor (Dato 'telefonos' $Telefonos) -P
 
 Write-Host ''
 Write-Host '  SQL Server del ERP:' -ForegroundColor Cyan
-$SqlServidor = Preguntar -Texto 'Servidor (equipo, equipo,puerto o equipo\instancia)' -Valor (Dato 'sql_servidor' $SqlServidor) -SinPreguntas:$SinPreguntas `
-       -Validar { param($v) $v.Trim().Length -ge 3 } -Ayuda 'Ejemplo: 192.168.1.10,1433'
-$SqlBase = Preguntar -Texto 'Base de datos' -Valor (Dato 'sql_base' $SqlBase) -SinPreguntas:$SinPreguntas `
-       -Validar { param($v) $v.Trim().Length -ge 1 } -Ayuda 'Nombre de la base del ERP.'
-$SqlUsuario = Preguntar -Texto 'Usuario' -Valor (Dato 'sql_usuario' $SqlUsuario) -PorDefecto 'sa' -SinPreguntas:$SinPreguntas
-$SqlClave = Preguntar -Texto 'Clave' -Valor (Dato 'sql_clave' $SqlClave) -Oculto -SinPreguntas:$SinPreguntas `
-       -Validar { param($v) $v.Length -ge 1 } -Ayuda 'La clave no puede quedar vacia.'
 
-# Se comprueba ANTES de instalar: si el servidor no responde, es mejor saberlo
-# ahora que despues de desplegar todo.
+$sqlServidorDato = Dato 'sql_servidor' $SqlServidor
+$sqlBaseDato     = Dato 'sql_base' $SqlBase
+$sqlUsuarioDato  = Dato 'sql_usuario' $SqlUsuario
+$sqlClaveDato    = Dato 'sql_clave' $SqlClave
+
+# Si el SQL Server esta en este mismo equipo, se sugiere: es lo mas frecuente
+# en instalaciones chicas y evita escribirlo a ciegas.
+$sugerido = ''
+if (-not $sqlServidorDato -and -not $SinPreguntas) {
+  $vivos = @(Buscar-SqlServers)
+  if ($vivos.Count -gt 0) {
+    $sugerido = $vivos[0]
+    Write-Host "  Se encontro un SQL Server en este equipo: $($vivos -join ', ')" -ForegroundColor Green
+  }
+}
+
+# Se prueba la conexion DE VERDAD antes de instalar. Comprobar solo el puerto no
+# dice nada: el usuario, la clave o la base pueden estar mal y eso se descubria
+# recien al final, con todo desplegado.
+$intento = 0
 while ($true) {
-  $sql = Parsear-SqlServidor $SqlServidor
-  if (Tcp-Responde $sql.Host $sql.Puerto 5000) {
-    Write-Host "  SQL Server responde en $($sql.Host):$($sql.Puerto)" -ForegroundColor Green
+  $intento++
+  $SqlServidor = Preguntar -Texto 'Servidor (equipo, equipo,puerto o equipo\instancia)' -Valor $sqlServidorDato -PorDefecto $sugerido -SinPreguntas:$SinPreguntas `
+         -Validar { param($v) $v.Trim().Length -ge 3 } -Ayuda 'Ejemplo: 192.168.1.10,1433'
+  $SqlUsuario = Preguntar -Texto 'Usuario' -Valor $sqlUsuarioDato -PorDefecto 'sa' -SinPreguntas:$SinPreguntas
+  $SqlClave = Preguntar -Texto 'Clave' -Valor $sqlClaveDato -Oculto -SinPreguntas:$SinPreguntas `
+         -Validar { param($v) $v.Length -ge 1 } -Ayuda 'La clave no puede quedar vacia.'
+
+  Write-Host '  Probando la conexion...'
+  $prueba = Probar-SqlServer -Servidor $SqlServidor -Base 'master' -Usuario $SqlUsuario -Clave $SqlClave
+  if ($prueba.Ok) {
+    Write-Host '  Conexion correcta' -ForegroundColor Green
     break
   }
-  Write-Warning "No se llega a $($sql.Host):$($sql.Puerto). Revise el nombre, el puerto y el firewall."
-  if ($SinPreguntas) { throw "No se alcanza el SQL Server en $($sql.Host):$($sql.Puerto)" }
-  $otro = Read-Host '  Escriba otro servidor, o Enter para instalar igual'
-  if (-not $otro) { break }
-  $SqlServidor = $otro
+
+  Write-Warning "No se pudo conectar: $($prueba.Motivo)"
+  if ($SinPreguntas) { throw "No se pudo conectar al SQL Server: $($prueba.Motivo)" }
+  if ($intento -ge 5) { throw 'Demasiados intentos de conexion al SQL Server.' }
+  Write-Host '  Escriba los datos otra vez.' -ForegroundColor Yellow
+  $sugerido = $SqlServidor
+  $sqlServidorDato = ''; $sqlUsuarioDato = ''; $sqlClaveDato = ''
 }
+
+# La base se elige de las que existen de verdad en ese servidor.
+$SqlBase = $sqlBaseDato
+if ($SqlBase -and $prueba.Bases.Count -gt 0 -and ($prueba.Bases -notcontains $SqlBase)) {
+  Write-Warning "La base '$SqlBase' no aparece en ese servidor."
+  if ($SinPreguntas) { throw "La base '$SqlBase' no existe en $SqlServidor" }
+  $SqlBase = ''
+}
+if (-not $SqlBase) {
+  if ($SinPreguntas) { throw 'Falta la base de datos del ERP. Indique SQL_BASE en datos.txt.' }
+  if ($prueba.Bases.Count -gt 0) {
+    Write-Host '  Bases disponibles en ese servidor:'
+    for ($i = 0; $i -lt $prueba.Bases.Count; $i++) { Write-Host ("    {0}. {1}" -f ($i + 1), $prueba.Bases[$i]) }
+    while (-not $SqlBase) {
+      $eleccion = Read-Host '  Numero de la base del ERP, o su nombre'
+      if ($eleccion -match '^\d+$' -and [int]$eleccion -ge 1 -and [int]$eleccion -le $prueba.Bases.Count) {
+        $SqlBase = $prueba.Bases[[int]$eleccion - 1]
+      } elseif ($eleccion) { $SqlBase = $eleccion }
+    }
+  } else {
+    $SqlBase = Preguntar -Texto 'Base de datos' -Valor '' -Validar { param($v) $v.Trim().Length -ge 1 } -Ayuda 'Nombre de la base del ERP.'
+  }
+}
+
+$pruebaBase = Probar-SqlServer -Servidor $SqlServidor -Base $SqlBase -Usuario $SqlUsuario -Clave $SqlClave
+if (-not $pruebaBase.Ok) { throw "No se pudo abrir la base $SqlBase : $($pruebaBase.Motivo)" }
+Write-Host "  La base $SqlBase abre correctamente con el usuario $SqlUsuario" -ForegroundColor Green
+
+# Un DataMart incompleto no da errores, solo listas vacias en pantalla: mejor
+# saberlo aqui que despues.
+$faltantesSql = @(Procedimientos-Faltantes-Sql -Servidor $SqlServidor -Base $SqlBase -Usuario $SqlUsuario -Clave $SqlClave)
+foreach ($f in $faltantesSql) { Write-Warning "Falta en esa base el procedimiento $f" }
 
 $FacturacionUrl = Dato 'facturacion_url' $FacturacionUrl
 $FacturacionConsultasUrl = Dato 'facturacion_consultas_url' $FacturacionConsultasUrl
@@ -116,6 +169,7 @@ Write-Host "    RUC         : $Ruc"
 Write-Host "    SQL Server  : $SqlServidor / $SqlBase / usuario $SqlUsuario"
 Write-Host "    Se instala en: $Destino   y la web en el puerto $PuertoWeb"
 if (-not $FacturacionUrl) { Write-Host '    Facturacion : sin configurar; se completa despues desde la pantalla' }
+if ($faltantesSql.Count -gt 0) { Write-Host "    ATENCION    : a esa base le faltan $($faltantesSql.Count) procedimiento(s); esas busquedas saldran vacias" -ForegroundColor Yellow }
 Write-Host ''
 if (-not $SinPreguntas) {
   if ((Read-Host '  Continuar? (S/N)') -notmatch '^[SsYy]') { Write-Host '  Cancelado, no se toco nada.'; exit 1 }

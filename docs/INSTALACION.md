@@ -57,9 +57,19 @@ Si hay cambios sin commit, avisa y los deja fuera. El resultado queda en
 Son seis datos: RUC, razón social, dirección, teléfono y los cuatro del SQL
 Server del ERP, que son servidor, base, usuario y clave. Nada más.
 
-El instalador comprueba que el SQL Server responda **antes** de tocar el
-servidor, valida lo que se escribe y muestra un resumen para confirmar. Si algo
-está mal, no se instala nada.
+El instalador **se conecta de verdad al SQL Server antes de tocar el servidor**.
+No comprueba solo que el puerto responda: entra con el usuario y la clave, y si
+algo está mal lo dice con precisión, ya sea que no se llega al servidor, que el
+usuario o la clave no son correctos, o que la base no existe. Vuelve a
+preguntar hasta que la conexión funcione.
+
+Además ayuda en dos cosas. Si hay un SQL Server en el mismo equipo, lo sugiere.
+Y una vez conectado, **muestra la lista de bases de datos que existen** para
+elegir por número, en lugar de escribir el nombre a ciegas.
+
+Si a esa base le faltan procedimientos del ERP, avisa en ese momento, antes de
+instalar. Al final muestra un resumen y pide confirmar. Si algo está mal, no se
+instala nada.
 
 Tarda menos de un minuto. Al terminar muestra la dirección web del servidor, el
 usuario `admin` y su clave inicial, y las escribe también en
@@ -160,6 +170,9 @@ pasos manuales:
 | `Expand-Archive` dice que terminó y no crea nada | Observado en Windows 11 ARM | Descomprimir con `tar -xf dbperu-guias-<versión>.zip`, que viene con Windows |
 | Copiar archivos sueltos con `scp` a una carpeta no los reemplaza | OpenSSH de Windows con PowerShell como intérprete | Copiar a la carpeta del usuario, mover con `Copy-Item` y comprobar la huella con `Get-FileHash` |
 | "La ejecución de scripts está deshabilitada en este sistema" | Directiva de ejecución restringida, que es la de fábrica | Invocar como indica este manual, con `powershell -ExecutionPolicy Bypass -File` |
+| "No se pudo conectar: el usuario o la clave no son correctos" | Credenciales del SQL Server | Confirmarlas con quien administra el ERP |
+| "No se pudo conectar: no se llega al servidor" | Nombre, puerto o firewall | Probar `equipo,1433`, y abrir el puerto en el servidor del ERP |
+| "La base no aparece en ese servidor" | Nombre de base equivocado | Elegir de la lista que muestra el instalador |
 
 ## 10. Estado de la validación
 

@@ -406,3 +406,70 @@ function Ip-De-Este-Equipo {
   if ($ip) { return $ip.IPAddress }
   return 'localhost'
 }
+
+function Probar-SqlServer {
+  # Conexion de verdad al SQL Server del ERP. Comprobar solo el puerto no dice
+  # nada: el usuario puede estar mal, la clave puede estar mal o la base puede
+  # no existir, y eso se descubria recien despues de instalar todo.
+  #
+  # Usa el cliente de SQL Server que ya trae .NET en Windows. No agrega nada al
+  # paquete.
+  param(
+    [string]$Servidor, [string]$Base = 'master', [string]$Usuario, [string]$Clave, [int]$Segundos = 8
+  )
+  $r = [pscustomobject]@{ Ok = $false; Motivo = ''; Detalle = ''; Bases = @() }
+  $cadena = "Server=$Servidor;Database=$Base;User ID=$Usuario;Password=$Clave;Connect Timeout=$Segundos;TrustServerCertificate=True"
+  $con = New-Object System.Data.SqlClient.SqlConnection $cadena
+  try {
+    $con.Open()
+    $r.Ok = $true
+    $cmd = $con.CreateCommand()
+    $cmd.CommandText = 'SELECT name FROM sys.databases WHERE database_id > 4 ORDER BY name'
+    $lector = $cmd.ExecuteReader()
+    while ($lector.Read()) { $r.Bases += $lector.GetString(0) }
+    $lector.Close()
+  } catch {
+    $m = $_.Exception.Message
+    $r.Detalle = $m
+    if ($m -match 'Login failed|inicio de sesion|inicio de sesi') { $r.Motivo = 'el usuario o la clave no son correctos' }
+    elseif ($m -match 'Cannot open database|No se puede abrir la base') { $r.Motivo = 'la base de datos no existe, o ese usuario no puede abrirla' }
+    elseif ($m -match 'network-related|no se encontro|not found|tiempo de espera|timeout|server was not found') { $r.Motivo = 'no se llega al servidor: revise el nombre, el puerto y el firewall' }
+    else { $r.Motivo = 'no se pudo conectar' }
+  } finally {
+    if ($con.State -ne 'Closed') { $con.Close() }
+  }
+  return $r
+}
+
+function Procedimientos-Faltantes-Sql {
+  # Los que usa el sistema. La lista completa la informa la salud de ApiGRE; aqui
+  # se miran los imprescindibles para avisar ANTES de instalar.
+  param([string]$Servidor, [string]$Base, [string]$Usuario, [string]$Clave)
+  $necesarios = @('prc_InsertGuiaDMKWeb', 'GetMaestrodocumentoserieByTipodocumento', 'GetMaestroalmacenByEstado',
+                  'GetMaestroOperacionByEstado', 'GetDatosClientexTipo', 'GetMaestroproveedoresByRuc',
+                  'pr_consultaProveedorlikeRazonsocial')
+  $faltan = @()
+  $cadena = "Server=$Servidor;Database=$Base;User ID=$Usuario;Password=$Clave;Connect Timeout=8;TrustServerCertificate=True"
+  $con = New-Object System.Data.SqlClient.SqlConnection $cadena
+  try {
+    $con.Open()
+    foreach ($n in $necesarios) {
+      $cmd = $con.CreateCommand()
+      $cmd.CommandText = "SELECT CASE WHEN OBJECT_ID('dbo.$n', 'P') IS NULL THEN 0 ELSE 1 END"
+      if ([int]$cmd.ExecuteScalar() -eq 0) { $faltan += $n }
+    }
+  } catch { } finally { if ($con.State -ne 'Closed') { $con.Close() } }
+  return $faltan
+}
+
+function Buscar-SqlServers {
+  # Sugerencias para no escribir a ciegas: se prueba si hay un SQL Server en
+  # este mismo equipo, que es lo mas frecuente en instalaciones chicas.
+  $candidatos = @('localhost', "$env:COMPUTERNAME") | Select-Object -Unique
+  $vivos = @()
+  foreach ($c in $candidatos) {
+    $sql = Parsear-SqlServidor $c
+    if (Tcp-Responde $sql.Host $sql.Puerto 1500) { $vivos += $c }
+  }
+  return $vivos
+}
