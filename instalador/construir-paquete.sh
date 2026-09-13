@@ -70,11 +70,17 @@ paso "Scripts, SQL y documentacion"
 # Los .cmd son la puerta de entrada: el cliente instala con doble clic y el
 # script pide permisos de administrador solo. datos.txt.ejemplo sirve para
 # dejar todo preparado y que no pregunte nada.
-cp "$RAIZ/instalador/instalar.ps1" "$RAIZ/instalador/actualizar.ps1" "$RAIZ/instalador/comun.ps1" \
-   "$RAIZ/instalador/INSTALAR.cmd" "$RAIZ/instalador/ACTUALIZAR.cmd" \
-   "$RAIZ/instalador/datos.txt.ejemplo" "$DIST/"
+# Todos los .ps1 y .cmd, sin lista a mano: enumerarlos uno por uno ya dejo
+# fuera del paquete un archivo nuevo, y eso no falla al construir sino en el
+# servidor del cliente.
+cp "$RAIZ"/instalador/*.ps1 "$RAIZ"/instalador/*.cmd "$RAIZ/instalador/datos.txt.ejemplo" "$DIST/"
+# construir-paquete.sh no va dentro del paquete: es de aqui.
+rm -f "$DIST/construir-paquete.sh"
 cp -R "$RAIZ/instalador/sql" "$DIST/sql"
 [ -f "$RAIZ/docs/INSTALACION.md" ] && cp "$RAIZ/docs/INSTALACION.md" "$DIST/LEEME-INSTALACION.md"
+# El manual de adopcion viaja con el paquete: quien adopta a un cliente viejo
+# lo hace desde el mismo zip, y ahi es donde lo va a buscar.
+[ -f "$RAIZ/docs/ADOPCION.md" ] && cp "$RAIZ/docs/ADOPCION.md" "$DIST/LEEME-ADOPCION.md"
 {
   echo "paquete   $VERSION"
   echo "gre-uni   $(git -C "$RAIZ" rev-parse HEAD)"

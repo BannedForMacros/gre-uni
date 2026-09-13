@@ -44,8 +44,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $Paquete = $PSScriptRoot
 . (Join-Path $Paquete 'comun.ps1')
+. (Join-Path $Paquete 'requisitos.ps1')
 
 Exigir-Administrador
+# Antes de preguntar nada y antes de tocar el disco: si este Windows no puede
+# con el paquete, es mejor saberlo ahora que a medio instalar.
+Probar-Requisitos
 
 # ---------------------------------------------------------------- datos
 # Cada dato se toma, en este orden, del parametro, del archivo datos.txt y, si
@@ -147,6 +151,16 @@ if (-not $SqlBase) {
 $pruebaBase = Probar-SqlServer -Servidor $SqlServidor -Base $SqlBase -Usuario $SqlUsuario -Clave $SqlClave
 if (-not $pruebaBase.Ok) { throw "No se pudo abrir la base $SqlBase : $($pruebaBase.Motivo)" }
 Write-Host "  La base $SqlBase abre correctamente con el usuario $SqlUsuario" -ForegroundColor Green
+
+# Los procedimientos del sistema se aplican aqui: viajan en el paquete y antes
+# habia que ejecutarlos a mano contra el DataMart.
+Write-Host '  Aplicando los procedimientos del DataMart...'
+$aplicados = Aplicar-Sql-DataMart -Carpeta "$Paquete\sql" -Servidor $SqlServidor -Base $SqlBase -Usuario $SqlUsuario -Clave $SqlClave
+foreach ($a in $aplicados.Aplicados) { Write-Host "    $a" -ForegroundColor Green }
+foreach ($f in $aplicados.Fallidos)  { Write-Warning "No se pudo aplicar $f" }
+if ($aplicados.Fallidos.Count -gt 0) {
+  Write-Host "    Quedaron en $Paquete\sql ; aplicarlos con quien administra el ERP." -ForegroundColor Yellow
+}
 
 # Un DataMart incompleto no da errores, solo listas vacias en pantalla: mejor
 # saberlo aqui que despues.

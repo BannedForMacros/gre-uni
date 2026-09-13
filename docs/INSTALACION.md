@@ -15,8 +15,8 @@ durante la instalación.
 | `runtime/` | PHP 7.4.33, Apache 2.4.66 (VS17), MySQL 5.7.44, Java 8 (Temurin), Visual C++ 14.44 |
 | `INSTALAR.cmd`, `ACTUALIZAR.cmd` | Lo que se abre con doble clic |
 | `datos.txt.ejemplo` | Plantilla para dejar los datos del cliente preparados |
-| `instalar.ps1`, `actualizar.ps1`, `comun.ps1` | El trabajo real, que llaman los anteriores |
-| `sql/` | Procedimientos del DataMart que usa el sistema (SP01, SP02) |
+| `instalar.ps1`, `actualizar.ps1`, `comun.ps1`, `requisitos.ps1` | El trabajo real, que llaman los anteriores |
+| `sql/` | Procedimientos del DataMart. Los `SP*.sql` los aplica el instalador solo; los `OPCIONAL*.sql` tocan tablas del ERP y se aplican aparte, a conciencia |
 | `VERSION.txt` | Commit exacto de la aplicación y de ApiGRE |
 
 Las versiones están fijadas en `instalador/runtime.lock` y se verifican por SHA-256
@@ -24,9 +24,14 @@ al armar el paquete.
 
 ## 2. Requisitos del servidor
 
-- **Windows 7 SP1 x64 o superior**, o Windows Server 2008 R2 SP1 o superior.
-- **PowerShell 5.1.** Windows 10, 11 y Server 2016 en adelante ya lo traen. En
-  Windows 7 y Server 2008 R2 hay que instalar antes WMF 5.1 y .NET Framework 4.5.
+- **Windows 10 x64 o Windows Server 2016 en adelante.** Es lo que se puede
+  sostener: el paquete está probado en Windows 11 y, de los cinco componentes
+  que instala, tres no tienen soporte confirmado para Windows 7 y uno se
+  contradice consigo mismo. El detalle, componente por componente y con las
+  fuentes, está en [COMPATIBILIDAD.md](COMPATIBILIDAD.md). En Windows 7 SP1 el
+  instalador avisa y deja seguir, pero nadie lo ha instalado ahí todavía.
+- **PowerShell 5.1** y **.NET Framework 4.5**. Windows 10, 11 y Server 2016 en
+  adelante ya los traen. El instalador lo comprueba antes de tocar el disco.
 - **Puertos libres:** 80 (web) y 3306 (MySQL). Si el servidor tiene Laragon,
   XAMPP o IIS usándolos, hay que detenerlos primero: el instalador se niega a
   seguir si los encuentra ocupados.
@@ -164,7 +169,7 @@ pasos manuales:
 | "El puerto 80 ya lo usa otro programa" | Laragon, XAMPP o IIS | Detenerlo, o instalar con `-PuertoWeb 8080` |
 | "Existe una base MySQL pero falta secretos.json" | Se borró `config\secretos.json` | Restaurarlo desde un respaldo; sin él no se conoce la clave de root |
 | "PHP no cargo la extension …" | Falta Visual C++ o el zip está dañado | Reinstalar Visual C++ 14.44 del paquete y volver a correr el instalador |
-| Búsqueda de proveedor por razón social siempre vacía | Falta `pr_consultaProveedorlikeRazonsocial` | Ver `procedimientosFaltantes` en la salud de ApiGRE |
+| Búsqueda de proveedor por razón social siempre vacía | Falta `pr_consultaProveedorlikeRazonsocial` | Desde 2026.09.7 el instalador lo crea solo. Si el usuario del ERP no tiene permiso para crear procedimientos, avisa: aplicar a mano los `SP*.sql` de la carpeta `sql\` |
 | ApiGRE no responde | Java caído o SQL Server inalcanzable | `C:\DBPeru\GRE\logs\api-gre.log` y `api-gre-consola.log` |
 | El login rechaza al administrador recién creado | Paquete anterior a 2026.09.3, donde el campo de usuario dependía de un archivo modificado a mano fuera del repositorio | Instalar un paquete 2026.09.3 o posterior |
 | `Expand-Archive` dice que terminó y no crea nada | Observado en Windows 11 ARM | Descomprimir con `tar -xf dbperu-guias-<versión>.zip`, que viene con Windows |
@@ -182,8 +187,8 @@ alcanzado por red.
 
 **Instalación nueva:** termina con `INSTALACION_OK`. Deja los servicios
 GRE-Apache y GRE-MySQL y la tarea GRE-ApiGRE. ApiGRE y la aplicación web
-responden, y el instalador avisa por su cuenta del procedimiento que falta en
-SQL Server.
+responden. Los procedimientos del DataMart los aplica el propio instalador, y
+si el usuario del ERP no tiene permiso para crearlos, avisa y sigue.
 
 **Repetible:** correrlo otra vez conserva el `.env`, no vuelve a migrar, no
 resiembra catálogos y no crea un segundo administrador.
@@ -194,10 +199,12 @@ base y de la aplicación.
 **Reversión:** probada de verdad, no simulada. Una actualización falló al
 detener ApiGRE, y el sistema se restauró solo y quedó como estaba.
 
-**Recorrido completo del sistema:** 22 de 23 pasos. Login, pantallas, catálogos
+**Recorrido completo del sistema:** 22 de 23 pasos en esa fecha. Login, pantallas, catálogos
 del DataMart, búsqueda de artículos, alta de una guía de ingreso y una de
 salida, envío al DataMart, PDF normal y valorado, y listados. El paso que falla
-es la búsqueda de proveedor por razón social, por el procedimiento ausente.
+era la búsqueda de proveedor por razón social, por el procedimiento ausente;
+desde entonces el procedimiento se incluye en el paquete y el instalador lo
+aplica solo, comprobado contra un SQL Server real.
 
 Las dos guías creadas desde Windows se comprobaron en SQL Server: ingreso
 1-1921 como tipo N y salida 1-1922 como tipo A.

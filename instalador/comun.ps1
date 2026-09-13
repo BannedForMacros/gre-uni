@@ -67,7 +67,9 @@ function Servicio-Existe([string]$n) {
 }
 
 function Ejecutar {
-  param([string]$Exe, [string]$Argumentos, [string]$Nombre, [string]$Directorio = '', [switch]$Devolver, [switch]$PermitirFallo)
+  # -Silencioso: para sondas cuyo resultado se inspecciona pero no le dice
+  # nada a quien instala (php -m escupe cincuenta lineas de modulos).
+  param([string]$Exe, [string]$Argumentos, [string]$Nombre, [string]$Directorio = '', [switch]$Devolver, [switch]$PermitirFallo, [switch]$Silencioso)
   $psi = New-Object Diagnostics.ProcessStartInfo $Exe, $Argumentos
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -79,7 +81,7 @@ function Ejecutar {
   $err = $p.StandardError.ReadToEnd()
   $p.WaitForExit()
   $texto = ($out.Result + $err).TrimEnd()
-  if ($texto) { Write-Host $texto }
+  if ($texto -and -not $Silencioso) { Write-Host $texto }
   if ($p.ExitCode -ne 0 -and -not $PermitirFallo) { throw "$Nombre fallo (codigo $($p.ExitCode))" }
   if ($Devolver) { return $texto }
 }
@@ -400,10 +402,20 @@ function Preguntar {
 }
 
 function Ip-De-Este-Equipo {
+  # Get-NetIPAddress no existe antes de Windows 8. Ahi fallaba en silencio y la
+  # instalacion terminaba anunciando http://localhost, que solo sirve sentado
+  # delante del servidor: desde cualquier otro equipo de la red, no abre.
   $ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
         Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } |
         Select-Object -First 1
   if ($ip) { return $ip.IPAddress }
+
+  $vieja = Get-WmiObject Win32_NetworkAdapterConfiguration -ErrorAction SilentlyContinue |
+           Where-Object { $_.IPEnabled } |
+           ForEach-Object { $_.IPAddress } |
+           Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' -and $_ -notmatch '^(127\.|169\.254\.)' } |
+           Select-Object -First 1
+  if ($vieja) { return $vieja }
   return 'localhost'
 }
 
@@ -438,6 +450,54 @@ function Probar-SqlServer {
   } finally {
     if ($con.State -ne 'Closed') { $con.Close() }
   }
+  return $r
+}
+
+function Aplicar-Sql-DataMart {
+  # Aplica los procedimientos que el sistema necesita en el DataMart del cliente.
+  #
+  # Hasta ahora los archivos viajaban dentro del paquete pero habia que
+  # ejecutarlos a mano, y en una instalacion nueva eso se olvida: la busqueda
+  # correspondiente sale vacia, sin ningun error, y nadie sabe por que.
+  #
+  # NO detiene la instalacion si falla. El usuario con el que se entra al ERP
+  # puede no tener permiso para crear procedimientos, y quien decide eso es el
+  # cliente, no este instalador. En ese caso se avisa con el motivo y se dice
+  # donde quedaron los archivos para aplicarlos a mano.
+  #
+  # Solo toma los SP*.sql. Los OPCIONAL*.sql tocan tablas del ERP y se aplican
+  # aparte, a conciencia.
+  param([string]$Carpeta, [string]$Servidor, [string]$Base, [string]$Usuario, [string]$Clave)
+
+  $r = [pscustomobject]@{ Aplicados = @(); Fallidos = @() }
+  if (-not (Test-Path $Carpeta)) { return $r }
+  $archivos = @(Get-ChildItem $Carpeta -Filter 'SP*.sql' -ErrorAction SilentlyContinue | Sort-Object Name)
+  if ($archivos.Count -eq 0) { return $r }
+
+  $cadena = "Server=$Servidor;Database=$Base;User ID=$Usuario;Password=$Clave;Connect Timeout=15;TrustServerCertificate=True"
+  $con = New-Object System.Data.SqlClient.SqlConnection $cadena
+  try { $con.Open() } catch {
+    $r.Fallidos += "no se pudo abrir la base para aplicarlos: $($_.Exception.Message)"
+    return $r
+  }
+  foreach ($a in $archivos) {
+    try {
+      # GO no es una instruccion de T-SQL sino del programa sqlcmd, asi que el
+      # archivo hay que partirlo y mandar cada lote por separado.
+      $lotes = [regex]::Split((Get-Content $a.FullName -Raw), '(?im)^\s*GO\s*$')
+      foreach ($lote in $lotes) {
+        if ($lote.Trim().Length -eq 0) { continue }
+        $cmd = $con.CreateCommand()
+        $cmd.CommandText = $lote
+        $cmd.CommandTimeout = 60
+        $cmd.ExecuteNonQuery() | Out-Null
+      }
+      $r.Aplicados += $a.Name
+    } catch {
+      $r.Fallidos += "$($a.Name): $($_.Exception.Message)"
+    }
+  }
+  if ($con.State -ne 'Closed') { $con.Close() }
   return $r
 }
 
