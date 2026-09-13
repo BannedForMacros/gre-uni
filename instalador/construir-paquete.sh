@@ -17,7 +17,17 @@ set -euo pipefail
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
 API_GRE="${API_GRE:-$RAIZ/../api-gre}"
 CACHE="${CACHE_RUNTIME:-$HOME/.cache/dbperu-guias-runtime}"
-VERSION="${1:-$(date +%Y.%m).1}"
+# El numero de entrega se calcula mirando lo ya construido. Antes valia
+# siempre .1 salvo que se pasara a mano, asi que un paquete nuevo podia
+# llamarse 2026.09.1 teniendo al lado un 2026.09.6 anterior: en el cliente,
+# eso se instala mal y nadie se entera hasta despues.
+if [ -n "${1:-}" ]; then
+  VERSION="$1"
+else
+  MES="$(date +%Y.%m)"
+  ULTIMO="$(ls -1 "$RAIZ/dist" 2>/dev/null | sed -n "s/^dbperu-guias-${MES}\\.\\([0-9][0-9]*\\)\\.zip$/\\1/p" | sort -n | tail -1)"
+  VERSION="$MES.$(( ${ULTIMO:-0} + 1 ))"
+fi
 PHP_BIN="${PHP_BIN:-$( [ -x /opt/homebrew/opt/php@8.1/bin/php ] && echo /opt/homebrew/opt/php@8.1/bin/php || command -v php )}"
 NOMBRE="dbperu-guias-$VERSION"
 DIST="$RAIZ/dist/$NOMBRE"
