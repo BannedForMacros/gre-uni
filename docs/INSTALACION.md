@@ -199,15 +199,21 @@ base y de la aplicación.
 **Reversión:** probada de verdad, no simulada. Una actualización falló al
 detener ApiGRE, y el sistema se restauró solo y quedó como estaba.
 
-**Recorrido completo del sistema:** 22 de 23 pasos en esa fecha. Login, pantallas, catálogos
-del DataMart, búsqueda de artículos, alta de una guía de ingreso y una de
-salida, envío al DataMart, PDF normal y valorado, y listados. El paso que falla
-era la búsqueda de proveedor por razón social, por el procedimiento ausente;
-desde entonces el procedimiento se incluye en el paquete y el instalador lo
-aplica solo, comprobado contra un SQL Server real.
+**Recorrido completo del sistema:** 23 de 23 pasos, con el paquete 2026.09.7
+instalado desde cero el 13 de septiembre de 2026. Login, pantallas, catálogos
+del DataMart, búsqueda de proveedor por razón social y por RUC, búsqueda de
+artículos, alta de una guía de ingreso y una de salida, envío al DataMart, PDF
+normal y valorado, y listados.
 
-Las dos guías creadas desde Windows se comprobaron en SQL Server: ingreso
-1-1921 como tipo N y salida 1-1922 como tipo A.
+El único paso que fallaba era la búsqueda de proveedor por razón social, por un
+procedimiento que faltaba en el DataMart. Ahora el procedimiento viaja en el
+paquete y el instalador lo aplica solo, así que en esa misma instalación el
+paso pasa sin intervención de nadie.
+
+**Adopción de un cliente existente:** probada sobre dos instalaciones montadas
+a propósito, una con la tabla de migraciones vacía y otra a medio migrar. Las
+dos terminan en `ADOPCION_OK` conservando todas las guías. Ver
+[ADOPCION.md](ADOPCION.md).
 
 **Defectos que encontró esta prueba y que ya están corregidos:**
 
