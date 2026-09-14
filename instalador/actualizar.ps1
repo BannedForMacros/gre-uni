@@ -62,8 +62,8 @@ try {
     Artisan $php 'config:clear' | Out-Null
     # Clientes que llegaron con la base importada de un dump: su tabla
     # migrations esta vacia y migrate intentaria crear tablas que ya existen.
-    $conMigraciones = Mysql-Sql $Destino $secretos.MysqlRoot "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='guia_electronica' AND table_name='migrations';"
-    $filas = if ([int]$conMigraciones -gt 0) { Mysql-Sql $Destino $secretos.MysqlRoot 'SELECT COUNT(*) FROM guia_electronica.migrations;' } else { 0 }
+    $conMigraciones = Mysql-Sql $Destino $secretos.MysqlRoot "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='guia_electronica' AND table_name='migrations';" -Silencioso
+    $filas = if ([int]$conMigraciones -gt 0) { Mysql-Sql $Destino $secretos.MysqlRoot 'SELECT COUNT(*) FROM guia_electronica.migrations;' -Silencioso } else { 0 }
     if ([int]$filas -eq 0) { Artisan $php 'gre:baseline' | Out-Null }
     Artisan $php 'migrate --force' | Out-Null
     Artisan $php 'gre:inicializar' | Out-Null

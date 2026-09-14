@@ -140,13 +140,13 @@ function Con-CnfMysql([string]$claveRoot, [scriptblock]$bloque) {
   try { & $bloque $cnf } finally { Remove-Item $cnf -Force -ErrorAction SilentlyContinue }
 }
 
-function Mysql-Sql([string]$destino, [string]$claveRoot, [string]$sql, [string]$base = '') {
+function Mysql-Sql([string]$destino, [string]$claveRoot, [string]$sql, [string]$base = '', [switch]$Silencioso) {
   $archivo = Join-Path $env:TEMP ('gre-' + [guid]::NewGuid() + '.sql')
   Escribir-Texto $archivo $sql
   try {
     Con-CnfMysql $claveRoot {
       param($cnf)
-      Ejecutar -Exe "$destino\mysql\bin\mysql.exe" -Argumentos "--defaults-extra-file=`"$cnf`" -N -B $base -e `"source $($archivo -replace '\\', '/')`"" -Nombre 'mysql' -Devolver
+      Ejecutar -Exe "$destino\mysql\bin\mysql.exe" -Argumentos "--defaults-extra-file=`"$cnf`" -N -B $base -e `"source $($archivo -replace '\\', '/')`"" -Nombre 'mysql' -Devolver -Silencioso:$Silencioso
     }
   } finally { Remove-Item $archivo -Force -ErrorAction SilentlyContinue }
 }
