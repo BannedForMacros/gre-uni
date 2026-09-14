@@ -91,6 +91,11 @@ cp -R "$RAIZ/instalador/sql" "$DIST/sql"
 # El manual de adopcion viaja con el paquete: quien adopta a un cliente viejo
 # lo hace desde el mismo zip, y ahi es donde lo va a buscar.
 [ -f "$RAIZ/docs/ADOPCION.md" ] && cp "$RAIZ/docs/ADOPCION.md" "$DIST/LEEME-ADOPCION.md"
+# La guia de soporte va primero: es lo que abre quien recibe el zip, y desde ahi
+# se llega a los demas. COMPATIBILIDAD viaja tambien, porque la guia la cita al
+# hablar de los requisitos del servidor y el tecnico esta donde el cliente.
+[ -f "$RAIZ/docs/SOPORTE.md" ] && cp "$RAIZ/docs/SOPORTE.md" "$DIST/LEEME-PRIMERO.md"
+[ -f "$RAIZ/docs/COMPATIBILIDAD.md" ] && cp "$RAIZ/docs/COMPATIBILIDAD.md" "$DIST/LEEME-COMPATIBILIDAD.md"
 {
   echo "paquete   $VERSION"
   echo "gre-uni   $(git -C "$RAIZ" rev-parse HEAD)"

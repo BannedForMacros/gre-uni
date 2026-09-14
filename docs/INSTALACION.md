@@ -136,22 +136,22 @@ permisos de administrador y hace el resto solo.
 recién hecho, y deja el sistema como estaba. El mensaje final dice `REVERTIDO`, o
 `NO SE PUDO REVERTIR` con la ruta del respaldo intacto.
 
-## 7. Clientes que vienen del sistema anterior (Laragon, base importada)
+## 7. Clientes que ya tenían el sistema
 
-Estos clientes no se instalaron con `instalar.ps1`, así que su migración tiene
-pasos manuales:
+**No use `INSTALAR.cmd` en un cliente que ya tiene datos.** Use **`ADOPTAR.cmd`**,
+que va en el mismo paquete.
 
-1. **Respalde** la base actual con mysqldump y la carpeta del sistema anterior.
-2. Anote los parámetros actuales. Están en la tabla `parametros`: RUC, razón
-   social, URLs y credencial de facturación.
-3. **Detenga** Apache y MySQL de Laragon, para liberar los puertos 80 y 3306.
-4. Corra `instalar.ps1` con los datos del cliente.
-5. Importe el respaldo en la base nueva `guia_electronica`. La clave de root está
-   en `config\secretos.json`.
-6. Corra `actualizar.ps1`. Detecta que la tabla `migrations` está vacía, ejecuta
-   `gre:baseline`, que marca como aplicado el esquema existente sin tocar datos,
-   y luego aplica solo lo nuevo.
-7. Copie el logo desde el sistema anterior a `app\storage\app\public\empresa\`.
+Hasta septiembre de 2026 este camino eran siete pasos a mano: respaldar,
+detener Laragon, instalar, importar la base, reconciliar las migraciones y
+copiar el logo. Ahora es doble clic, y además no supone que el cliente use
+Laragon: encuentra la instalación esté donde esté y el motor de base aunque no
+esté en el puerto 3306.
+
+Respalda, pone al día el esquema sin tocar los datos, verifica que no falte
+ninguna guía y revierte solo si algo sale mal. Probado sobre el respaldo real
+de un cliente con 18.272 guías: 32 segundos.
+
+Todo el detalle está en [ADOPCION.md](ADOPCION.md).
 
 ## 8. Seguridad
 
